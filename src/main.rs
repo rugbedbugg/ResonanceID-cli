@@ -1,6 +1,4 @@
-mod utils;
-
-use utils::{
+use shazam::utils::{
     read_wav::read_wav,
     audio_to_spectrogram::audio_to_spectrogram,
     extract_peaks::extract_peaks,

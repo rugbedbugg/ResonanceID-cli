@@ -22,3 +22,31 @@ pub fn extract_peaks(spectrogram: &[Vec<f32>], threshold_db: f32) -> Vec<(usize,
 
     peaks
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn find_peak_in_flat_spectrogram() {
+        let spectrogram = vec![vec![0.0; 10]; 5];
+        let peaks = extract_peaks(&spectrogram, -20.0);
+        assert!(peaks.is_empty());
+    }
+
+    #[test]
+    fn find_peak_at_bin_5() {
+        let mut frame = vec![0.0; 10];
+        frame[5] = 1.0;
+
+        let spectrogram = vec![frame; 3];
+        let peaks = extract_peaks(&spectrogram, -20.0);
+
+        assert!(!peaks.is_empty());
+        for &(_frame_idx, bin_idx, mag) in &peaks {
+            assert_eq!(bin_idx, 5);
+            assert!(mag > 0.0);
+        }
+    }
+}

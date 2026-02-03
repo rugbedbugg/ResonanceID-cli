@@ -1,0 +1,21 @@
+[package]
+name = "shazam"
+version = "0.1.0"
+edition = "2024"
+default-run = "shazam"
+
+[lib]
+name = "shazam"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shazam"
+path = "src/main.rs"
+
+[[bin]]
+name = "test-pipeline"
+path = "src/bin/test-pipeline.rs"
+
+[dependencies]
+hound = "3.5"
+rustfft = "6.2"

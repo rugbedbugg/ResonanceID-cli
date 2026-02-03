@@ -48,3 +48,25 @@ pub fn audio_to_spectrogram(
 
     spectrogram
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handle_zero_samples() {
+        let samples = vec![0i16; 2048];
+        let spectrogram = audio_to_spectrogram(&samples, 44100, 1024, 512);
+        assert!(!spectrogram.is_empty());
+        assert!(!spectrogram.len() > 1);
+    }
+
+    #[test]
+    fn handle_short_samples() {
+        let samples = vec![0i16, 512];
+        let spectrogram = audio_to_spectrogram(&samples, 44100, 1024, 512);
+        assert!(!spectrogram.is_empty());
+    }
+}

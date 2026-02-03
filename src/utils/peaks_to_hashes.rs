@@ -20,3 +20,29 @@ pub fn peaks_to_hashes(peaks: &[(usize, usize, f32)], anchor_window:usize) -> Ve
 
     hashes
 }
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn generate_hashes_from_peaks() {
+        let peaks = vec![
+            (0, 100, 1.0),
+            (1, 150, 1.0),
+            (2, 200, 1.0),
+        ];
+
+        let hashes = peaks_to_hashes(&peaks, 50);
+        assert!(!hashes.is_empty());
+        assert!(!hashes.len() >= 3);
+    }
+
+    #[test]
+    fn handle_empty_peaks() {
+        let peaks = vec![];
+        let hashes = peaks_to_hashes(&peaks, 50);
+        assert!(hashes.is_empty());
+    }
+}
