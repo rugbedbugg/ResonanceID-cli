@@ -89,3 +89,27 @@ fn weak_match_below_threshold_is_filtered() {
     drop(db);
     let _ = std::fs::remove_file(db_path);
 }
+
+#[test]
+fn sparse_query_match_with_inconsistent_offsets_is_filtered() {
+    let db_path = temp_db_path();
+    let mut db = Database::open(db_path.to_str().unwrap()).unwrap();
+
+    let hashes = vec![(1001, 100), (1002, 200), (1003, 300), (1004, 400)];
+    db.register_song("songs/output.wav", "Test Song", "Test Artist", &hashes)
+        .unwrap();
+
+    // 30 query hashes, only 2 can match and they disagree on offset
+    let mut query_hashes = Vec::new();
+    for i in 0..28u32 {
+        query_hashes.push((900_000 + i, 10 + i));
+    }
+    query_hashes.push((1001, 50));  // offset = 50
+    query_hashes.push((1002, 151)); // offset = 49
+
+    let matches = db.recognize_song(&query_hashes).unwrap();
+    assert!(matches.is_empty());
+
+    drop(db);
+    let _ = std::fs::remove_file(db_path);
+}

@@ -3,6 +3,15 @@ use rusqlite::{Result, params};
 
 const MIN_MATCH_SCORE: u32 = 2;
 
+fn dynamic_min_match_score(query_hash_count: usize) -> u32 {
+    if query_hash_count < 1000 {
+        return MIN_MATCH_SCORE;
+    }
+
+    // scale score gate for large queries to suppress accidental collisions
+    ((query_hash_count as f32).sqrt() * 30.0) as u32
+}
+
 impl Database {
     //////////////////////
     // Recognize a Song //
@@ -17,6 +26,7 @@ impl Database {
         //---------------------------------------//
         let mut offset_counts: std::collections::HashMap<(i64, i32), u32> =
             std::collections::HashMap::new();
+        let min_score_gate = dynamic_min_match_score(hashes.len());
 
         // Prepare fingerprint lookup statement
         let mut stmt = self.conn.prepare(
@@ -54,7 +64,7 @@ impl Database {
 
         let mut results = Vec::new();
         for (song_id, score) in ranked.into_iter().take(5) {
-            if score < MIN_MATCH_SCORE {
+            if score < min_score_gate {
                 continue;
             }
 
@@ -74,5 +84,23 @@ impl Database {
         //-- RETURN RESULTS --//
         //--------------------//
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dynamic_gate_for_small_queries() {
+        assert_eq!(dynamic_min_match_score(10), 2);
+        assert_eq!(dynamic_min_match_score(999), 2);
+    }
+
+    #[test]
+    fn dynamic_gate_scales_for_large_queries() {
+        let gate = dynamic_min_match_score(1_000_000);
+        assert!(gate > 2);
+        assert_eq!(gate, 30000);
     }
 }
