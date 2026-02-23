@@ -71,3 +71,21 @@ fn recognize_returns_empty_for_unknown_hashes() {
     drop(db);
     let _ = std::fs::remove_file(db_path);
 }
+
+#[test]
+fn weak_match_below_threshold_is_filtered() {
+    let db_path = temp_db_path();
+    let mut db = Database::open(db_path.to_str().unwrap()).unwrap();
+
+    let hashes = vec![(123, 100), (456, 200), (789, 300)];
+    db.register_song("songs/output.wav", "Test Song", "Test Artist", &hashes)
+        .unwrap();
+
+    // only one matching offset vote => below minimum score gate
+    let weak_query = vec![(123, 50)];
+    let matches = db.recognize_song(&weak_query).unwrap();
+    assert!(matches.is_empty());
+
+    drop(db);
+    let _ = std::fs::remove_file(db_path);
+}

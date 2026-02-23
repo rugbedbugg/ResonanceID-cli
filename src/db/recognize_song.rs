@@ -1,6 +1,8 @@
 use crate::db::create_db::Database;
 use rusqlite::{Result, params};
 
+const MIN_MATCH_SCORE: u32 = 2;
+
 impl Database {
     //////////////////////
     // Recognize a Song //
@@ -52,6 +54,10 @@ impl Database {
 
         let mut results = Vec::new();
         for (song_id, score) in ranked.into_iter().take(5) {
+            if score < MIN_MATCH_SCORE {
+                continue;
+            }
+
             let (title, artist) = self
                 .conn
                 .query_row(
