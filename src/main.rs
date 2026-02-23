@@ -236,8 +236,12 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
     match args[1].as_str() {
         "store" | "remember" | "index" => {
             // shazam store <wav_path> <title> <artist> [options]
+            if has_help_flag(args, 2) {
+                print_store_usage();
+                return Err("help requested".into());
+            }
             if args.len() < 5 {
-                print_usage();
+                print_store_usage();
                 return Err("store requires <wav_path> <title> <artist>".into());
             }
 
@@ -258,8 +262,12 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
         }
         "recognize" => {
             // shazam recognize <wav_path> [options]
+            if has_help_flag(args, 2) {
+                print_recognize_usage();
+                return Err("help requested".into());
+            }
             if args.len() < 3 {
-                print_usage();
+                print_recognize_usage();
                 return Err("recognize requires <wav_path>".into());
             }
 
@@ -276,8 +284,12 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
         }
         "list-top-matches" => {
             // shazam list-top-matches <wav_path> [options]
+            if has_help_flag(args, 2) {
+                print_list_top_matches_usage();
+                return Err("help requested".into());
+            }
             if args.len() < 3 {
-                print_usage();
+                print_list_top_matches_usage();
                 return Err("list-top-matches requires <wav_path>".into());
             }
 
@@ -293,12 +305,20 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             })
         }
         "list-songs" => {
+            if has_help_flag(args, 2) {
+                print_list_songs_usage();
+                return Err("help requested".into());
+            }
             let db_path = parse_db_only_option(args, 2)?;
             Ok(Command::ListSongs { db_path })
         }
         "remove-song" => {
+            if has_help_flag(args, 2) {
+                print_remove_song_usage();
+                return Err("help requested".into());
+            }
             if args.len() < 3 {
-                print_usage();
+                print_remove_song_usage();
                 return Err("remove-song requires <song_id>".into());
             }
             let song_id: i64 = args[2].parse()?;
@@ -306,6 +326,10 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             Ok(Command::RemoveSong { song_id, db_path })
         }
         "db-stats" => {
+            if has_help_flag(args, 2) {
+                print_db_stats_usage();
+                return Err("help requested".into());
+            }
             let db_path = parse_db_only_option(args, 2)?;
             Ok(Command::DbStats { db_path })
         }
@@ -476,14 +500,43 @@ fn should_warn_short_index(duration_seconds: f32) -> bool {
     duration_seconds < MIN_RECOMMENDED_INDEX_DURATION_SECONDS
 }
 
+fn has_help_flag(args: &[String], offset: usize) -> bool {
+    args.iter().skip(offset).any(|arg| arg == "--help" || arg == "-h")
+}
+
 fn print_usage() {
     println!("Usage:");
-    println!("  shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
+    print_store_usage();
     println!("  shazam remember <wav_path> <title> <artist> ...   (alias for store)");
+    print_recognize_usage();
+    print_list_top_matches_usage();
+    print_list_songs_usage();
+    print_remove_song_usage();
+    print_db_stats_usage();
+    println!("  shazam <command> --help");
+}
+
+fn print_store_usage() {
+    println!("  shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
+}
+
+fn print_recognize_usage() {
     println!("  shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
+}
+
+fn print_list_top_matches_usage() {
     println!("  shazam list-top-matches <wav_path> [same options as recognize]");
+}
+
+fn print_list_songs_usage() {
     println!("  shazam list-songs [--db <db_path>]");
+}
+
+fn print_remove_song_usage() {
     println!("  shazam remove-song <song_id> [--db <db_path>]");
+}
+
+fn print_db_stats_usage() {
     println!("  shazam db-stats [--db <db_path>]");
 }
 
@@ -680,5 +733,15 @@ mod tests {
             Command::DbStats { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
             _ => panic!("expected db-stats command"),
         }
+    }
+
+    #[test]
+    fn help_flag_for_store_command() {
+        let args = vec![
+            "shazam".to_string(),
+            "store".to_string(),
+            "--help".to_string(),
+        ];
+        assert!(parse_cli(&args).is_err());
     }
 }
