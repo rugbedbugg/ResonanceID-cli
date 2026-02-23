@@ -5,6 +5,7 @@ pub mod utils {
     pub mod read_wav;
 }
 pub mod db {
+    pub mod admin;
     pub mod create_db;
     pub mod recognize_song;
     pub mod register_song;

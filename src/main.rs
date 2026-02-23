@@ -31,6 +31,16 @@ enum Command {
         no_config: bool,
         overrides: Overrides,
     },
+    ListSongs {
+        db_path: String,
+    },
+    RemoveSong {
+        song_id: i64,
+        db_path: String,
+    },
+    DbStats {
+        db_path: String,
+    },
 }
 
 #[derive(Default, Clone)]
@@ -186,6 +196,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        Command::ListSongs { db_path } => {
+            let db = Database::open(&db_path)?;
+            let songs = db.list_songs()?;
+            if songs.is_empty() {
+                println!("No songs stored.");
+            } else {
+                for (id, title, artist, path, fp_count) in songs {
+                    println!("{} | {} - {} | fingerprints={} | {}", id, title, artist, fp_count, path);
+                }
+            }
+        }
+        Command::RemoveSong { song_id, db_path } => {
+            let db = Database::open(&db_path)?;
+            let removed = db.remove_song_by_id(song_id)?;
+            if removed > 0 {
+                println!("✅ Removed song id {}", song_id);
+            } else {
+                println!("⚠️ No song found for id {}", song_id);
+            }
+        }
+        Command::DbStats { db_path } => {
+            let db = Database::open(&db_path)?;
+            let (song_count, fingerprint_count) = db.db_stats()?;
+            println!("Songs: {}", song_count);
+            println!("Fingerprints: {}", fingerprint_count);
+        }
     }
 
     Ok(())
@@ -256,6 +292,23 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
                 overrides,
             })
         }
+        "list-songs" => {
+            let db_path = parse_db_only_option(args, 2)?;
+            Ok(Command::ListSongs { db_path })
+        }
+        "remove-song" => {
+            if args.len() < 3 {
+                print_usage();
+                return Err("remove-song requires <song_id>".into());
+            }
+            let song_id: i64 = args[2].parse()?;
+            let db_path = parse_db_only_option(args, 3)?;
+            Ok(Command::RemoveSong { song_id, db_path })
+        }
+        "db-stats" => {
+            let db_path = parse_db_only_option(args, 2)?;
+            Ok(Command::DbStats { db_path })
+        }
         "help" | "--help" | "-h" => {
             print_usage();
             Err("help requested".into())
@@ -265,6 +318,18 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             Err("unknown command".into())
         }
     }
+}
+
+fn parse_db_only_option(args: &[String], offset: usize) -> Result<String, Box<dyn std::error::Error>> {
+    if args.len() == offset {
+        return Ok(DEFAULT_DB_PATH.to_string());
+    }
+
+    if args.len() == offset + 2 && args[offset] == "--db" {
+        return Ok(args[offset + 1].clone());
+    }
+
+    Err("invalid db options".into())
 }
 
 fn parse_common_options(
@@ -417,6 +482,9 @@ fn print_usage() {
     println!("  shazam remember <wav_path> <title> <artist> ...   (alias for store)");
     println!("  shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
     println!("  shazam list-top-matches <wav_path> [same options as recognize]");
+    println!("  shazam list-songs [--db <db_path>]");
+    println!("  shazam remove-song <song_id> [--db <db_path>]");
+    println!("  shazam db-stats [--db <db_path>]");
 }
 
 #[cfg(test)]
@@ -572,6 +640,45 @@ mod tests {
                 assert_eq!(overrides.max_results, Some(3));
             }
             _ => panic!("expected list-top-matches command"),
+        }
+    }
+
+    #[test]
+    fn parse_list_songs_command() {
+        let args = vec!["shazam".to_string(), "list-songs".to_string()];
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::ListSongs { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
+            _ => panic!("expected list-songs command"),
+        }
+    }
+
+    #[test]
+    fn parse_remove_song_command() {
+        let args = vec![
+            "shazam".to_string(),
+            "remove-song".to_string(),
+            "7".to_string(),
+            "--db".to_string(),
+            "x.db".to_string(),
+        ];
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::RemoveSong { song_id, db_path } => {
+                assert_eq!(song_id, 7);
+                assert_eq!(db_path, "x.db");
+            }
+            _ => panic!("expected remove-song command"),
+        }
+    }
+
+    #[test]
+    fn parse_db_stats_command() {
+        let args = vec!["shazam".to_string(), "db-stats".to_string()];
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::DbStats { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
+            _ => panic!("expected db-stats command"),
         }
     }
 }
