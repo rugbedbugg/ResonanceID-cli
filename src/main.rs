@@ -520,56 +520,52 @@ fn has_help_flag(args: &[String], offset: usize) -> bool {
 
 fn print_usage() {
     println!("shazam v{}", env!("CARGO_PKG_VERSION"));
-    println!();
-    println!("USAGE");
-    println!("  shazam <command> [options]");
-    println!();
-    println!("COMMANDS");
+    println!("- Usage: shazam <command> [options]");
+    println!("- Commands:");
     print_store_usage();
-    println!("  remember          Alias for store");
+    println!("  - remember: alias for store");
     print_recognize_usage();
     print_list_top_matches_usage();
     print_list_songs_usage();
     print_remove_song_usage();
     print_db_stats_usage();
-    println!();
-    println!("HELP");
-    println!("  shazam --help");
-    println!("  shazam <command> --help");
+    println!("- Help:");
+    println!("  - shazam --help");
+    println!("  - shazam <command> --help");
 }
 
 fn print_store_usage() {
-    println!("  store             Save a reference track into the fingerprint database");
-    println!("                    shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config]");
-    println!("                    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
-    println!("                    [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
+    println!("  - store: save a reference track");
+    println!("    shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config]");
+    println!("    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
+    println!("    [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
 }
 
 fn print_recognize_usage() {
-    println!("  recognize         Identify the best match for an input clip");
-    println!("                    shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config]");
-    println!("                    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
-    println!("                    [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
+    println!("  - recognize: identify best match for an input clip");
+    println!("    shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config]");
+    println!("    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
+    println!("    [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
 }
 
 fn print_list_top_matches_usage() {
-    println!("  list-top-matches  Show ranked candidates for an input clip");
-    println!("                    shazam list-top-matches <wav_path> [same options as recognize]");
+    println!("  - list-top-matches: show ranked candidates");
+    println!("    shazam list-top-matches <wav_path> [same options as recognize]");
 }
 
 fn print_list_songs_usage() {
-    println!("  list-songs        List all stored songs in the database");
-    println!("                    shazam list-songs [--db <db_path>]");
+    println!("  - list-songs: list all stored songs");
+    println!("    shazam list-songs [--db <db_path>]");
 }
 
 fn print_remove_song_usage() {
-    println!("  remove-song       Remove a stored song by id");
-    println!("                    shazam remove-song <song_id> [--db <db_path>]");
+    println!("  - remove-song: remove a song by id");
+    println!("    shazam remove-song <song_id> [--db <db_path>]");
 }
 
 fn print_db_stats_usage() {
-    println!("  db-stats          Show database totals");
-    println!("                    shazam db-stats [--db <db_path>]");
+    println!("  - db-stats: show database totals");
+    println!("    shazam db-stats [--db <db_path>]");
 }
 
 #[cfg(test)]
