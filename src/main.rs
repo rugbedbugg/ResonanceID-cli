@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             overrides,
         } => {
             let run_start = std::time::Instant::now();
-            let mut cfg = AppConfig::load(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             let mut db = Database::open(&db_path)?;
@@ -68,6 +68,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             db.register_song(&wav_path, &title, &artist, &fingerprints)?;
 
             println!("✅ Indexed '{}' by '{}'", title, artist);
+            if !config_report.loaded_paths.is_empty() {
+                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+            }
             println!("Path: {}", wav_path);
             println!("Database: {}", db_path);
             println!("Sample Rate: {} Hz", report.sample_rate);
@@ -101,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_config,
             overrides,
         } => {
-            let mut cfg = AppConfig::load(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
@@ -114,6 +117,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?;
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
+            if !config_report.loaded_paths.is_empty() {
+                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+            }
             if let Some((title, artist, score)) = matches.first() {
                 println!(
                     "✅ Match found\nTop Match: {} - {} (match score: {})",

@@ -6,6 +6,11 @@ pub struct AppConfig {
     pub recognition: RecognitionConfig,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ConfigLoadReport {
+    pub loaded_paths: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct FingerprintConfig {
     pub window_size: usize,
@@ -79,10 +84,19 @@ struct RecognitionConfigPartial {
 
 impl AppConfig {
     pub fn load(config_path: Option<&str>, no_config: bool) -> Result<Self, Box<dyn std::error::Error>> {
+        let (config, _report) = Self::load_with_report(config_path, no_config)?;
+        Ok(config)
+    }
+
+    pub fn load_with_report(
+        config_path: Option<&str>,
+        no_config: bool,
+    ) -> Result<(Self, ConfigLoadReport), Box<dyn std::error::Error>> {
         let mut config = AppConfig::default();
+        let mut report = ConfigLoadReport::default();
 
         if no_config {
-            return Ok(config);
+            return Ok((config, report));
         }
 
         let mut paths = Vec::new();
@@ -100,9 +114,10 @@ impl AppConfig {
             let raw = std::fs::read_to_string(&path)?;
             let partial: AppConfigPartial = toml::from_str(&raw)?;
             apply_partial(&mut config, partial);
+            report.loaded_paths.push(path);
         }
 
-        Ok(config)
+        Ok((config, report))
     }
 }
 
@@ -157,5 +172,24 @@ mod tests {
         let cfg = AppConfig::load(None, true).unwrap();
         assert_eq!(cfg.fingerprint.window_size, 1024);
         assert_eq!(cfg.recognition.min_match_score, 2);
+    }
+
+    #[test]
+    fn report_includes_preexisting_config_path() {
+        let mut path = std::env::temp_dir();
+        path.push(format!("shazam_config_test_{}.toml", std::process::id()));
+
+        std::fs::write(
+            &path,
+            "[fingerprint]\nwindow_size = 2048\n[recognition]\nmax_results = 3\n",
+        )
+        .unwrap();
+
+        let (cfg, report) = AppConfig::load_with_report(path.to_str(), false).unwrap();
+        assert_eq!(cfg.fingerprint.window_size, 2048);
+        assert_eq!(cfg.recognition.max_results, 3);
+        assert_eq!(report.loaded_paths.len(), 1);
+
+        let _ = std::fs::remove_file(path);
     }
 }
