@@ -520,16 +520,25 @@ fn has_help_flag(args: &[String], offset: usize) -> bool {
 
 fn print_usage() {
     println!("shazam v{}", env!("CARGO_PKG_VERSION"));
-    println!("- Usage: shazam <command> [options]");
-    println!("- Commands:");
+    println!();
+    println!("USAGE: shazam <command> [options]");
+    println!();
+    println!("COMMANDS:");
     print_store_usage();
+    println!();
     println!("  - remember: alias for store");
+    println!();
     print_recognize_usage();
+    println!();
     print_list_top_matches_usage();
+    println!();
     print_list_songs_usage();
+    println!();
     print_remove_song_usage();
+    println!();
     print_db_stats_usage();
-    println!("- Help:");
+    println!();
+    println!("HELP:");
     println!("  - shazam --help");
     println!("  - shazam <command> --help");
 }
