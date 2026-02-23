@@ -1,7 +1,7 @@
 use shazam::{
     config::AppConfig,
     db::create_db::Database,
-    pipeline::{fingerprint_wav, fingerprint_wav_with_report},
+    pipeline::{fingerprint_wav, fingerprint_wav_with_report_and_clip, ClipOptions},
 };
 
 const DEFAULT_DB_PATH: &str = "shazam.db";
@@ -43,6 +43,9 @@ struct Overrides {
     dynamic_gate_scale: Option<f32>,
     small_query_threshold: Option<usize>,
     max_results: Option<usize>,
+    clip_start_seconds: Option<f32>,
+    clip_duration_seconds: Option<f32>,
+    auto_clip: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,12 +67,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             apply_overrides(&mut cfg, &overrides);
 
             let mut db = Database::open(&db_path)?;
-            let (fingerprints, report) = fingerprint_wav_with_report(
+            let clip_options = ClipOptions {
+                clip_start_seconds: overrides.clip_start_seconds,
+                clip_duration_seconds: overrides.clip_duration_seconds,
+                auto_clip: overrides.auto_clip,
+            };
+            let (fingerprints, report) = fingerprint_wav_with_report_and_clip(
                 &wav_path,
                 cfg.fingerprint.threshold_db,
                 cfg.fingerprint.window_size,
                 cfg.fingerprint.hop_size,
                 cfg.fingerprint.anchor_window,
+                clip_options,
             )?;
 
             db.register_song(&wav_path, &title, &artist, &fingerprints)?;
@@ -82,6 +91,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Database: {}", db_path);
             println!("Sample Rate: {} Hz", report.sample_rate);
             println!("Duration: {:.2} s", report.duration_seconds);
+            println!(
+                "Clip Used: start={:.2}s, duration={:.2}s",
+                report.clip_start_seconds,
+                report.clip_duration_seconds
+            );
             println!("Samples: {}", report.sample_count);
             println!("Frames: {}", report.frame_count);
             println!("Peaks: {}", report.peak_count);
@@ -339,6 +353,24 @@ fn parse_common_options(
                 overrides.max_results = Some(args[i + 1].parse()?);
                 i += 2;
             }
+            "--clip-start" => {
+                if i + 1 >= args.len() {
+                    return Err("--clip-start requires a value".into());
+                }
+                overrides.clip_start_seconds = Some(args[i + 1].parse()?);
+                i += 2;
+            }
+            "--clip-duration" => {
+                if i + 1 >= args.len() {
+                    return Err("--clip-duration requires a value".into());
+                }
+                overrides.clip_duration_seconds = Some(args[i + 1].parse()?);
+                i += 2;
+            }
+            "--auto-clip" => {
+                overrides.auto_clip = true;
+                i += 1;
+            }
             _ => {
                 return Err("invalid arguments after required positional values".into());
             }
@@ -381,7 +413,7 @@ fn should_warn_short_index(duration_seconds: f32) -> bool {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
+    println!("  shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
     println!("  shazam remember <wav_path> <title> <artist> ...   (alias for store)");
     println!("  shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
     println!("  shazam list-top-matches <wav_path> [same options as recognize]");
@@ -464,7 +496,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_store_command_with_config_flags() {
+    fn parse_store_command_with_config_and_clip_flags() {
         let args = vec![
             "shazam".to_string(),
             "remember".to_string(),
@@ -474,6 +506,11 @@ mod tests {
             "--config".to_string(),
             "custom.toml".to_string(),
             "--no-config".to_string(),
+            "--clip-start".to_string(),
+            "12.5".to_string(),
+            "--clip-duration".to_string(),
+            "20".to_string(),
+            "--auto-clip".to_string(),
         ];
 
         let command = parse_cli(&args).unwrap();
@@ -481,10 +518,14 @@ mod tests {
             Command::Store {
                 config_path,
                 no_config,
+                overrides,
                 ..
             } => {
                 assert_eq!(config_path.unwrap(), "custom.toml");
                 assert!(no_config);
+                assert_eq!(overrides.clip_start_seconds, Some(12.5));
+                assert_eq!(overrides.clip_duration_seconds, Some(20.0));
+                assert!(overrides.auto_clip);
             }
             _ => panic!("expected store command"),
         }
