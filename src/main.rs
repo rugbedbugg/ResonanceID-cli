@@ -8,7 +8,7 @@ const DEFAULT_DB_PATH: &str = "shazam.db";
 const MIN_RECOMMENDED_INDEX_DURATION_SECONDS: f32 = 15.0;
 
 enum Command {
-    Index {
+    Store {
         wav_path: String,
         title: String,
         artist: String,
@@ -18,6 +18,13 @@ enum Command {
         overrides: Overrides,
     },
     Recognize {
+        wav_path: String,
+        db_path: String,
+        config_path: Option<String>,
+        no_config: bool,
+        overrides: Overrides,
+    },
+    ListTopMatches {
         wav_path: String,
         db_path: String,
         config_path: Option<String>,
@@ -43,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let command = parse_cli(&args)?;
 
     match command {
-        Command::Index {
+        Command::Store {
             wav_path,
             title,
             artist,
@@ -67,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             db.register_song(&wav_path, &title, &artist, &fingerprints)?;
 
-            println!("✅ Indexed '{}' by '{}'", title, artist);
+            println!("✅ Stored '{}' by '{}'", title, artist);
             if !config_report.loaded_paths.is_empty() {
                 println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
             }
@@ -94,7 +101,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     report.duration_seconds,
                     MIN_RECOMMENDED_INDEX_DURATION_SECONDS
                 );
-                println!("   Tip: use 'recognize' for snippets and 'index' for reference tracks.");
+                println!("   Tip: use 'recognize' for snippets and 'store/remember' for reference tracks.");
             }
         }
         Command::Recognize {
@@ -133,6 +140,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
             }
         }
+        Command::ListTopMatches {
+            wav_path,
+            db_path,
+            config_path,
+            no_config,
+            overrides,
+        } => {
+            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            apply_overrides(&mut cfg, &overrides);
+
+            let db = Database::open(&db_path)?;
+            let fingerprints = fingerprint_wav(
+                &wav_path,
+                cfg.fingerprint.threshold_db,
+                cfg.fingerprint.window_size,
+                cfg.fingerprint.hop_size,
+                cfg.fingerprint.anchor_window,
+            )?;
+
+            let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
+            if !config_report.loaded_paths.is_empty() {
+                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+            }
+            if matches.is_empty() {
+                println!("❌ No matches found");
+            } else {
+                println!("Top matches:");
+                for (idx, (title, artist, score)) in matches.iter().enumerate() {
+                    println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
+                }
+            }
+        }
     }
 
     Ok(())
@@ -145,11 +184,11 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
     }
 
     match args[1].as_str() {
-        "index" => {
-            // shazam index <wav_path> <title> <artist> [options]
+        "store" | "remember" | "index" => {
+            // shazam store <wav_path> <title> <artist> [options]
             if args.len() < 5 {
                 print_usage();
-                return Err("index requires <wav_path> <title> <artist>".into());
+                return Err("store requires <wav_path> <title> <artist>".into());
             }
 
             let wav_path = args[2].clone();
@@ -157,7 +196,7 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             let artist = args[4].clone();
             let (db_path, config_path, no_config, overrides) = parse_common_options(args, 5)?;
 
-            Ok(Command::Index {
+            Ok(Command::Store {
                 wav_path,
                 title,
                 artist,
@@ -178,6 +217,24 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             let (db_path, config_path, no_config, overrides) = parse_common_options(args, 3)?;
 
             Ok(Command::Recognize {
+                wav_path,
+                db_path,
+                config_path,
+                no_config,
+                overrides,
+            })
+        }
+        "list-top-matches" => {
+            // shazam list-top-matches <wav_path> [options]
+            if args.len() < 3 {
+                print_usage();
+                return Err("list-top-matches requires <wav_path>".into());
+            }
+
+            let wav_path = args[2].clone();
+            let (db_path, config_path, no_config, overrides) = parse_common_options(args, 3)?;
+
+            Ok(Command::ListTopMatches {
                 wav_path,
                 db_path,
                 config_path,
@@ -324,8 +381,10 @@ fn should_warn_short_index(duration_seconds: f32) -> bool {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  shazam index <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
+    println!("  shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
+    println!("  shazam remember <wav_path> <title> <artist> ...   (alias for store)");
     println!("  shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config] [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>] [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
+    println!("  shazam list-top-matches <wav_path> [same options as recognize]");
 }
 
 #[cfg(test)]
@@ -333,10 +392,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_index_command() {
+    fn parse_store_command() {
         let args = vec![
             "shazam".to_string(),
-            "index".to_string(),
+            "store".to_string(),
             "songs/output.wav".to_string(),
             "Test Song".to_string(),
             "Test Artist".to_string(),
@@ -344,7 +403,7 @@ mod tests {
 
         let command = parse_cli(&args).unwrap();
         match command {
-            Command::Index {
+            Command::Store {
                 wav_path,
                 title,
                 artist,
@@ -360,7 +419,7 @@ mod tests {
                 assert!(config_path.is_none());
                 assert!(!no_config);
             }
-            _ => panic!("expected index command"),
+            _ => panic!("expected store command"),
         }
     }
 
@@ -405,10 +464,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_index_command_with_config_flags() {
+    fn parse_store_command_with_config_flags() {
         let args = vec![
             "shazam".to_string(),
-            "index".to_string(),
+            "remember".to_string(),
             "songs/output.wav".to_string(),
             "Test Song".to_string(),
             "Test Artist".to_string(),
@@ -419,7 +478,7 @@ mod tests {
 
         let command = parse_cli(&args).unwrap();
         match command {
-            Command::Index {
+            Command::Store {
                 config_path,
                 no_config,
                 ..
@@ -427,7 +486,7 @@ mod tests {
                 assert_eq!(config_path.unwrap(), "custom.toml");
                 assert!(no_config);
             }
-            _ => panic!("expected index command"),
+            _ => panic!("expected store command"),
         }
     }
 
@@ -453,6 +512,25 @@ mod tests {
                 assert_eq!(overrides.min_match_score, Some(10));
             }
             _ => panic!("expected recognize command"),
+        }
+    }
+
+    #[test]
+    fn parse_list_top_matches_command() {
+        let args = vec![
+            "shazam".to_string(),
+            "list-top-matches".to_string(),
+            "snippet/clip.wav".to_string(),
+            "--max-results".to_string(),
+            "3".to_string(),
+        ];
+
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::ListTopMatches { overrides, .. } => {
+                assert_eq!(overrides.max_results, Some(3));
+            }
+            _ => panic!("expected list-top-matches command"),
         }
     }
 }
