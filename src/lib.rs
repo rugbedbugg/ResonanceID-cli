@@ -10,6 +10,7 @@ pub mod db {
     pub mod register_song;
 }
 
+pub mod config;
 pub mod pipeline;
 
 #[cfg(test)]

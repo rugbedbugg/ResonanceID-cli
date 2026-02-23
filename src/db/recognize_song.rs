@@ -1,15 +1,13 @@
-use crate::db::create_db::Database;
+use crate::{config::RecognitionConfig, db::create_db::Database};
 use rusqlite::{Result, params};
 
-const MIN_MATCH_SCORE: u32 = 2;
-
-fn dynamic_min_match_score(query_hash_count: usize) -> u32 {
-    if query_hash_count < 1000 {
-        return MIN_MATCH_SCORE;
+fn dynamic_min_match_score(query_hash_count: usize, cfg: &RecognitionConfig) -> u32 {
+    if query_hash_count < cfg.small_query_threshold {
+        return cfg.min_match_score;
     }
 
     // scale score gate for large queries to suppress accidental collisions
-    ((query_hash_count as f32).sqrt() * 30.0) as u32
+    ((query_hash_count as f32).sqrt() * cfg.dynamic_gate_scale) as u32
 }
 
 impl Database {
@@ -21,12 +19,20 @@ impl Database {
     // ii.  Compute best offset score per song
     // iii. Rank and fetch metadata
     pub fn recognize_song(&self, hashes: &[(u32, u32)]) -> Result<Vec<(String, String, f32)>> {
+        self.recognize_song_with_config(hashes, &RecognitionConfig::default())
+    }
+
+    pub fn recognize_song_with_config(
+        &self,
+        hashes: &[(u32, u32)],
+        cfg: &RecognitionConfig,
+    ) -> Result<Vec<(String, String, f32)>> {
         //---------------------------------------//
         //-- i. Candidate collection by offset --//
         //---------------------------------------//
         let mut offset_counts: std::collections::HashMap<(i64, i32), u32> =
             std::collections::HashMap::new();
-        let min_score_gate = dynamic_min_match_score(hashes.len());
+        let min_score_gate = dynamic_min_match_score(hashes.len(), cfg);
 
         // Prepare fingerprint lookup statement
         let mut stmt = self.conn.prepare(
@@ -63,7 +69,7 @@ impl Database {
         ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
         let mut results = Vec::new();
-        for (song_id, score) in ranked.into_iter().take(5) {
+        for (song_id, score) in ranked.into_iter().take(cfg.max_results) {
             if score < min_score_gate {
                 continue;
             }
@@ -93,13 +99,15 @@ mod tests {
 
     #[test]
     fn dynamic_gate_for_small_queries() {
-        assert_eq!(dynamic_min_match_score(10), 2);
-        assert_eq!(dynamic_min_match_score(999), 2);
+        let cfg = RecognitionConfig::default();
+        assert_eq!(dynamic_min_match_score(10, &cfg), 2);
+        assert_eq!(dynamic_min_match_score(999, &cfg), 2);
     }
 
     #[test]
     fn dynamic_gate_scales_for_large_queries() {
-        let gate = dynamic_min_match_score(1_000_000);
+        let cfg = RecognitionConfig::default();
+        let gate = dynamic_min_match_score(1_000_000, &cfg);
         assert!(gate > 2);
         assert_eq!(gate, 30000);
     }

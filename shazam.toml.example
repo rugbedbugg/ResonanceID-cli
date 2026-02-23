@@ -1,0 +1,11 @@
+[fingerprint]
+window_size = 1024
+hop_size = 512
+anchor_window = 50
+threshold_db = -20.0
+
+[recognition]
+min_match_score = 2
+dynamic_gate_scale = 30.0
+small_query_threshold = 1000
+max_results = 5

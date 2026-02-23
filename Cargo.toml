@@ -1,6 +1,6 @@
 [package]
 name = "shazam"
-version = "0.2.4"
+version = "0.3.0"
 edition = "2024"
 default-run = "shazam"
 
@@ -20,3 +20,5 @@ path = "src/bin/test-pipeline.rs"
 hound = "3.5"
 rusqlite = "0.38.0"
 rustfft = "6.2"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9"

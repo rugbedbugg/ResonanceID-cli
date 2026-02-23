@@ -1,10 +1,10 @@
-use shazam::{db::create_db::Database, pipeline::{fingerprint_wav, fingerprint_wav_with_report}};
+use shazam::{
+    config::AppConfig,
+    db::create_db::Database,
+    pipeline::{fingerprint_wav, fingerprint_wav_with_report},
+};
 
 const DEFAULT_DB_PATH: &str = "shazam.db";
-const DEFAULT_WINDOW_SIZE: usize = 1024;
-const DEFAULT_HOP_SIZE: usize = 512;
-const DEFAULT_ANCHOR_WINDOW: usize = 50;
-const DEFAULT_THRESHOLD_DB: f32 = -20.0;
 const MIN_RECOMMENDED_INDEX_DURATION_SECONDS: f32 = 15.0;
 
 enum Command {
@@ -13,10 +13,14 @@ enum Command {
         title: String,
         artist: String,
         db_path: String,
+        config_path: Option<String>,
+        no_config: bool,
     },
     Recognize {
         wav_path: String,
         db_path: String,
+        config_path: Option<String>,
+        no_config: bool,
     },
 }
 
@@ -30,15 +34,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             title,
             artist,
             db_path,
+            config_path,
+            no_config,
         } => {
             let run_start = std::time::Instant::now();
+            let cfg = AppConfig::load(config_path.as_deref(), no_config)?;
             let mut db = Database::open(&db_path)?;
             let (fingerprints, report) = fingerprint_wav_with_report(
                 &wav_path,
-                DEFAULT_THRESHOLD_DB,
-                DEFAULT_WINDOW_SIZE,
-                DEFAULT_HOP_SIZE,
-                DEFAULT_ANCHOR_WINDOW,
+                cfg.fingerprint.threshold_db,
+                cfg.fingerprint.window_size,
+                cfg.fingerprint.hop_size,
+                cfg.fingerprint.anchor_window,
             )?;
 
             db.register_song(&wav_path, &title, &artist, &fingerprints)?;
@@ -54,7 +61,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Fingerprints: {}", report.fingerprint_count);
             println!(
                 "Params: window_size={}, hop_size={}, anchor_window={}, threshold_db={}",
-                DEFAULT_WINDOW_SIZE, DEFAULT_HOP_SIZE, DEFAULT_ANCHOR_WINDOW, DEFAULT_THRESHOLD_DB
+                cfg.fingerprint.window_size,
+                cfg.fingerprint.hop_size,
+                cfg.fingerprint.anchor_window,
+                cfg.fingerprint.threshold_db
             );
             println!("Index Time: {} ms", run_start.elapsed().as_millis());
 
@@ -67,17 +77,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("   Tip: use 'recognize' for snippets and 'index' for reference tracks.");
             }
         }
-        Command::Recognize { wav_path, db_path } => {
+        Command::Recognize {
+            wav_path,
+            db_path,
+            config_path,
+            no_config,
+        } => {
+            let cfg = AppConfig::load(config_path.as_deref(), no_config)?;
             let db = Database::open(&db_path)?;
             let fingerprints = fingerprint_wav(
                 &wav_path,
-                DEFAULT_THRESHOLD_DB,
-                DEFAULT_WINDOW_SIZE,
-                DEFAULT_HOP_SIZE,
-                DEFAULT_ANCHOR_WINDOW,
+                cfg.fingerprint.threshold_db,
+                cfg.fingerprint.window_size,
+                cfg.fingerprint.hop_size,
+                cfg.fingerprint.anchor_window,
             )?;
 
-            let matches = db.recognize_song(&fingerprints)?;
+            let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
             if let Some((title, artist, score)) = matches.first() {
                 println!(
                     "✅ Match found\nTop Match: {} - {} (match score: {})",
@@ -113,13 +129,15 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             let wav_path = args[2].clone();
             let title = args[3].clone();
             let artist = args[4].clone();
-            let db_path = parse_db_path(args, 5)?;
+            let (db_path, config_path, no_config) = parse_common_options(args, 5)?;
 
             Ok(Command::Index {
                 wav_path,
                 title,
                 artist,
                 db_path,
+                config_path,
+                no_config,
             })
         }
         "recognize" => {
@@ -130,9 +148,14 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             }
 
             let wav_path = args[2].clone();
-            let db_path = parse_db_path(args, 3)?;
+            let (db_path, config_path, no_config) = parse_common_options(args, 3)?;
 
-            Ok(Command::Recognize { wav_path, db_path })
+            Ok(Command::Recognize {
+                wav_path,
+                db_path,
+                config_path,
+                no_config,
+            })
         }
         "help" | "--help" | "-h" => {
             print_usage();
@@ -145,16 +168,42 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
     }
 }
 
-fn parse_db_path(args: &[String], offset: usize) -> Result<String, Box<dyn std::error::Error>> {
-    if args.len() == offset {
-        return Ok(DEFAULT_DB_PATH.to_string());
+fn parse_common_options(
+    args: &[String],
+    offset: usize,
+) -> Result<(String, Option<String>, bool), Box<dyn std::error::Error>> {
+    let mut db_path = DEFAULT_DB_PATH.to_string();
+    let mut config_path: Option<String> = None;
+    let mut no_config = false;
+
+    let mut i = offset;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--db" => {
+                if i + 1 >= args.len() {
+                    return Err("--db requires a value".into());
+                }
+                db_path = args[i + 1].clone();
+                i += 2;
+            }
+            "--config" => {
+                if i + 1 >= args.len() {
+                    return Err("--config requires a value".into());
+                }
+                config_path = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--no-config" => {
+                no_config = true;
+                i += 1;
+            }
+            _ => {
+                return Err("invalid arguments after required positional values".into());
+            }
+        }
     }
 
-    if args.len() == offset + 2 && args[offset] == "--db" {
-        return Ok(args[offset + 1].clone());
-    }
-
-    Err("invalid arguments after required positional values".into())
+    Ok((db_path, config_path, no_config))
 }
 
 fn should_warn_short_index(duration_seconds: f32) -> bool {
@@ -163,8 +212,8 @@ fn should_warn_short_index(duration_seconds: f32) -> bool {
 
 fn print_usage() {
     println!("Usage:");
-    println!("  shazam index <wav_path> <title> <artist> [--db <db_path>]");
-    println!("  shazam recognize <wav_path> [--db <db_path>]");
+    println!("  shazam index <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config]");
+    println!("  shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config]");
 }
 
 #[cfg(test)]
@@ -188,11 +237,15 @@ mod tests {
                 title,
                 artist,
                 db_path,
+                config_path,
+                no_config,
             } => {
                 assert_eq!(wav_path, "songs/output.wav");
                 assert_eq!(title, "Test Song");
                 assert_eq!(artist, "Test Artist");
                 assert_eq!(db_path, DEFAULT_DB_PATH);
+                assert!(config_path.is_none());
+                assert!(!no_config);
             }
             _ => panic!("expected index command"),
         }
@@ -210,9 +263,16 @@ mod tests {
 
         let command = parse_cli(&args).unwrap();
         match command {
-            Command::Recognize { wav_path, db_path } => {
+            Command::Recognize {
+                wav_path,
+                db_path,
+                config_path,
+                no_config,
+            } => {
                 assert_eq!(wav_path, "snippet/clip.wav");
                 assert_eq!(db_path, "custom.db");
+                assert!(config_path.is_none());
+                assert!(!no_config);
             }
             _ => panic!("expected recognize command"),
         }
@@ -228,5 +288,32 @@ mod tests {
     fn warn_for_short_index_duration() {
         assert!(should_warn_short_index(5.0));
         assert!(!should_warn_short_index(25.0));
+    }
+
+    #[test]
+    fn parse_index_command_with_config_flags() {
+        let args = vec![
+            "shazam".to_string(),
+            "index".to_string(),
+            "songs/output.wav".to_string(),
+            "Test Song".to_string(),
+            "Test Artist".to_string(),
+            "--config".to_string(),
+            "custom.toml".to_string(),
+            "--no-config".to_string(),
+        ];
+
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::Index {
+                config_path,
+                no_config,
+                ..
+            } => {
+                assert_eq!(config_path.unwrap(), "custom.toml");
+                assert!(no_config);
+            }
+            _ => panic!("expected index command"),
+        }
     }
 }
