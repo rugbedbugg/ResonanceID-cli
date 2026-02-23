@@ -6,7 +6,7 @@ fn temp_db_path() -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    path.push(format!("shazam_test_{}_{}.db", std::process::id(), nanos));
+    path.push(format!("resonanceid_cli_test_{}_{}.db", std::process::id(), nanos));
     path
 }
 

@@ -1,10 +1,10 @@
-use shazam::{
+use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
     pipeline::{fingerprint_wav, fingerprint_wav_with_report_and_clip, ClipOptions},
 };
 
-const DEFAULT_DB_PATH: &str = "shazam.db";
+const DEFAULT_DB_PATH: &str = "resonanceid-cli.db";
 const MIN_RECOMMENDED_INDEX_DURATION_SECONDS: f32 = 15.0;
 
 enum Command {
@@ -249,7 +249,7 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
 
     match args[1].as_str() {
         "store" | "remember" | "index" => {
-            // shazam store <wav_path> <title> <artist> [options]
+            // resonanceid-cli store <wav_path> <title> <artist> [options]
             if has_help_flag(args, 2) {
                 print_store_usage();
                 return Err("help requested".into());
@@ -275,7 +275,7 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             })
         }
         "recognize" => {
-            // shazam recognize <wav_path> [options]
+            // resonanceid-cli recognize <wav_path> [options]
             if has_help_flag(args, 2) {
                 print_recognize_usage();
                 return Err("help requested".into());
@@ -297,7 +297,7 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             })
         }
         "list-top-matches" => {
-            // shazam list-top-matches <wav_path> [options]
+            // resonanceid-cli list-top-matches <wav_path> [options]
             if has_help_flag(args, 2) {
                 print_list_top_matches_usage();
                 return Err("help requested".into());
@@ -519,62 +519,89 @@ fn has_help_flag(args: &[String], offset: usize) -> bool {
 }
 
 fn print_usage() {
-    println!("shazam v{}", env!("CARGO_PKG_VERSION"));
+    println!("A chemistry-inspired audio fingerprint CLI.");
     println!();
-    println!("USAGE: shazam <command> [options]");
+    println!("USAGE");
+    println!("  resonanceid-cli <command> [subcommand] [flags]");
     println!();
-    println!("COMMANDS:");
-    print_store_usage();
+    println!("CORE COMMANDS");
+    println!("  store             Save a reference track into the fingerprint database");
+    println!("  remember          Alias for 'store'");
+    println!("  recognize         Identify the best match for an input clip");
+    println!("  list-top-matches  Show ranked candidates for a clip");
+    println!("  list-songs        List songs currently stored in the database");
+    println!("  remove-song       Remove a song by id");
+    println!("  db-stats          Show song/fingerprint totals");
     println!();
-    println!("  - remember: alias for store");
+    println!("FLAGS");
+    println!("  --help            Show help for command");
     println!();
-    print_recognize_usage();
+    println!("EXAMPLES");
+    println!("  $ resonanceid-cli store song.wav \"Song\" \"Artist\"");
+    println!("  $ resonanceid-cli recognize clip.wav");
+    println!("  $ resonanceid-cli db-stats");
     println!();
-    print_list_top_matches_usage();
-    println!();
-    print_list_songs_usage();
-    println!();
-    print_remove_song_usage();
-    println!();
-    print_db_stats_usage();
-    println!();
-    println!("HELP:");
-    println!("  - shazam --help");
-    println!("  - shazam <command> --help");
+    println!("LEARN MORE");
+    println!("  Use 'resonanceid-cli <command> --help' for command-specific usage.");
+    println!("  Version: v{}", env!("CARGO_PKG_VERSION"));
 }
 
 fn print_store_usage() {
-    println!("  - store: save a reference track");
-    println!("    shazam store <wav_path> <title> <artist> [--db <db_path>] [--config <path>] [--no-config]");
-    println!("    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
-    println!("    [--clip-start <seconds>] [--clip-duration <seconds>] [--auto-clip]");
+    println!("USAGE");
+    println!("  resonanceid-cli store <wav_path> <title> <artist> [options]");
+    println!();
+    println!("OPTIONS");
+    println!("  --db <db_path>");
+    println!("  --config <path>");
+    println!("  --no-config");
+    println!("  --window-size <n>");
+    println!("  --hop-size <n>");
+    println!("  --anchor-window <n>");
+    println!("  --threshold-db <f32>");
+    println!("  --clip-start <seconds>");
+    println!("  --clip-duration <seconds>");
+    println!("  --auto-clip");
 }
 
 fn print_recognize_usage() {
-    println!("  - recognize: identify best match for an input clip");
-    println!("    shazam recognize <wav_path> [--db <db_path>] [--config <path>] [--no-config]");
-    println!("    [--window-size <n>] [--hop-size <n>] [--anchor-window <n>] [--threshold-db <f32>]");
-    println!("    [--min-match-score <n>] [--dynamic-gate-scale <f32>] [--small-query-threshold <n>] [--max-results <n>]");
+    println!("USAGE");
+    println!("  resonanceid-cli recognize <wav_path> [options]");
+    println!();
+    println!("OPTIONS");
+    println!("  --db <db_path>");
+    println!("  --config <path>");
+    println!("  --no-config");
+    println!("  --window-size <n>");
+    println!("  --hop-size <n>");
+    println!("  --anchor-window <n>");
+    println!("  --threshold-db <f32>");
+    println!("  --min-match-score <n>");
+    println!("  --dynamic-gate-scale <f32>");
+    println!("  --small-query-threshold <n>");
+    println!("  --max-results <n>");
 }
 
 fn print_list_top_matches_usage() {
-    println!("  - list-top-matches: show ranked candidates");
-    println!("    shazam list-top-matches <wav_path> [same options as recognize]");
+    println!("USAGE");
+    println!("  resonanceid-cli list-top-matches <wav_path> [options]");
+    println!();
+    println!("TIP");
+    println!("  Uses same options as 'recognize'.");
 }
 
 fn print_list_songs_usage() {
-    println!("  - list-songs: list all stored songs");
-    println!("    shazam list-songs [--db <db_path>]");
+    println!("USAGE");
+    println!("  resonanceid-cli list-songs [--db <db_path>]");
 }
 
 fn print_remove_song_usage() {
-    println!("  - remove-song: remove a song by id");
-    println!("    shazam remove-song <song_id> [--db <db_path>]");
+    println!("USAGE");
+    println!("  resonanceid-cli remove-song <song_id> [--db <db_path>]");
 }
 
 fn print_db_stats_usage() {
-    println!("  - db-stats: show database totals");
-    println!("    shazam db-stats [--db <db_path>]");
+    println!("USAGE");
+    println!("  resonanceid-cli db-stats [--db <db_path>]");
 }
 
 #[cfg(test)]
@@ -584,7 +611,7 @@ mod tests {
     #[test]
     fn parse_store_command() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "store".to_string(),
             "songs/output.wav".to_string(),
             "Test Song".to_string(),
@@ -616,7 +643,7 @@ mod tests {
     #[test]
     fn parse_recognize_command_with_custom_db() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "recognize".to_string(),
             "snippet/clip.wav".to_string(),
             "--db".to_string(),
@@ -643,7 +670,7 @@ mod tests {
 
     #[test]
     fn fail_on_missing_command() {
-        let args = vec!["shazam".to_string()];
+        let args = vec!["resonanceid-cli".to_string()];
         assert!(parse_cli(&args).is_err());
     }
 
@@ -656,7 +683,7 @@ mod tests {
     #[test]
     fn parse_store_command_with_config_and_clip_flags() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "remember".to_string(),
             "songs/output.wav".to_string(),
             "Test Song".to_string(),
@@ -692,7 +719,7 @@ mod tests {
     #[test]
     fn parse_recognize_with_override_flags() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "recognize".to_string(),
             "snippet/clip.wav".to_string(),
             "--window-size".to_string(),
@@ -717,7 +744,7 @@ mod tests {
     #[test]
     fn parse_list_top_matches_command() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "list-top-matches".to_string(),
             "snippet/clip.wav".to_string(),
             "--max-results".to_string(),
@@ -735,7 +762,7 @@ mod tests {
 
     #[test]
     fn parse_list_songs_command() {
-        let args = vec!["shazam".to_string(), "list-songs".to_string()];
+        let args = vec!["resonanceid-cli".to_string(), "list-songs".to_string()];
         let command = parse_cli(&args).unwrap();
         match command {
             Command::ListSongs { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
@@ -746,7 +773,7 @@ mod tests {
     #[test]
     fn parse_remove_song_command() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "remove-song".to_string(),
             "7".to_string(),
             "--db".to_string(),
@@ -764,7 +791,7 @@ mod tests {
 
     #[test]
     fn parse_db_stats_command() {
-        let args = vec!["shazam".to_string(), "db-stats".to_string()];
+        let args = vec!["resonanceid-cli".to_string(), "db-stats".to_string()];
         let command = parse_cli(&args).unwrap();
         match command {
             Command::DbStats { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
@@ -775,7 +802,7 @@ mod tests {
     #[test]
     fn help_flag_for_store_command() {
         let args = vec![
-            "shazam".to_string(),
+            "resonanceid-cli".to_string(),
             "store".to_string(),
             "--help".to_string(),
         ];

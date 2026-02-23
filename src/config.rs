@@ -152,13 +152,13 @@ fn apply_partial(config: &mut AppConfig, partial: AppConfigPartial) {
 fn default_config_paths() -> Vec<String> {
     let mut paths = Vec::new();
 
-    paths.push("/etc/shazam/config.toml".to_string());
+    paths.push("/etc/resonanceid-cli/config.toml".to_string());
 
     if let Ok(home) = std::env::var("HOME") {
-        paths.push(format!("{}/.config/shazam/config.toml", home));
+        paths.push(format!("{}/.config/resonanceid-cli/config.toml", home));
     }
 
-    paths.push("./shazam.toml".to_string());
+    paths.push("./resonanceid-cli.toml".to_string());
 
     paths
 }
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn report_includes_preexisting_config_path() {
         let mut path = std::env::temp_dir();
-        path.push(format!("shazam_config_test_{}.toml", std::process::id()));
+        path.push(format!("resonanceid_cli_config_test_{}.toml", std::process::id()));
 
         std::fs::write(
             &path,

@@ -1,15 +1,15 @@
 [package]
-name = "shazam"
-version = "0.7.6"
+name = "resonanceid-cli"
+version = "0.8.1"
 edition = "2024"
-default-run = "shazam"
+default-run = "resonanceid-cli"
 
 [lib]
-name = "shazam"
+name = "resonanceid_cli"
 path = "src/lib.rs"
 
 [[bin]]
-name = "shazam"
+name = "resonanceid-cli"
 path = "src/main.rs"
 
 [[bin]]

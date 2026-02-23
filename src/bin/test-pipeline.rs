@@ -1,4 +1,4 @@
-use shazam::utils::{
+use resonanceid_cli::utils::{
     read_wav::read_wav,
     audio_to_spectrogram::audio_to_spectrogram,
     extract_peaks::extract_peaks,

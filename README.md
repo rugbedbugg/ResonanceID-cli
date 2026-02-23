@@ -1,4 +1,4 @@
-# shazam
+# resonanceid-cli
 
 A Rust-based audio fingerprinting CLI inspired by Shazam-style matching.
 
@@ -134,9 +134,9 @@ Clip options (store/remember):
 
 Search order (when `--config` is not given):
 
-1. `/etc/shazam/config.toml`
-2. `~/.config/shazam/config.toml`
-3. `./shazam.toml`
+1. `/etc/resonanceid-cli/config.toml`
+2. `~/.config/resonanceid-cli/config.toml`
+3. `./resonanceid-cli.toml`
 
 Precedence:
 
@@ -158,7 +158,7 @@ small_query_threshold = 1000
 max_results = 5
 ```
 
-You can copy from `shazam.toml.example`.
+You can copy from `resonanceid-cli.toml.example`.
 
 ---
 
