@@ -2,6 +2,8 @@ pub fn extract_peaks(spectrogram: &[Vec<f32>], threshold_db: f32) -> Vec<(usize,
     let mut peaks = Vec::new();
 
     // convert DB threshold to linear
+    // fallback for invalid threshold values
+    let threshold_db = if threshold_db.is_nan() { -20.0 } else { threshold_db };
     let threshold_linear = 10.0f32.powf(threshold_db / 20.0);
 
     for (frame_idx, frame) in spectrogram.iter().enumerate() {
@@ -48,5 +50,18 @@ mod tests {
             assert_eq!(bin_idx, 5);
             assert!(mag > 0.0);
         }
+    }
+
+    #[test]
+    fn handle_non_finite_threshold() {
+        let mut frame = vec![0.0; 10];
+        frame[5] = 1.0;
+        let spectrogram = vec![frame; 1];
+
+        let peaks_inf = extract_peaks(&spectrogram, f32::INFINITY);
+        let peaks_nan = extract_peaks(&spectrogram, f32::NAN);
+
+        assert!(peaks_inf.is_empty());
+        assert!(!peaks_nan.is_empty());
     }
 }

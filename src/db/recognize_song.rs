@@ -48,7 +48,7 @@ impl Database {
         //-- iii. Sort by score and fetch metadata --//
         //------------------------------------------//
         let mut ranked: Vec<_> = scores.into_iter().collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
         let mut results = Vec::new();
         for (song_id, score) in ranked.into_iter().take(5) {

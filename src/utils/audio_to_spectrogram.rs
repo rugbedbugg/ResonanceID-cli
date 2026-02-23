@@ -8,6 +8,11 @@ pub fn audio_to_spectrogram(
         frame_size: usize,      // If       1024
         hop_size: usize,        // then     512 = 50% overlap
     ) -> Vec<Vec<f32>> {
+    // Guard invalid pipeline configuration
+    if samples.is_empty() || sample_rate == 0 || frame_size < 2 || hop_size == 0 {
+        return Vec::new();
+    }
+
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(frame_size);
 
@@ -60,7 +65,7 @@ mod tests {
         let samples = vec![0i16; 2048];
         let spectrogram = audio_to_spectrogram(&samples, 44100, 1024, 512);
         assert!(!spectrogram.is_empty());
-        assert!(!spectrogram.len() > 1);
+        assert!(spectrogram.len() > 1);
     }
 
     #[test]
@@ -68,5 +73,30 @@ mod tests {
         let samples = vec![0i16, 512];
         let spectrogram = audio_to_spectrogram(&samples, 44100, 1024, 512);
         assert!(!spectrogram.is_empty());
+    }
+
+    #[test]
+    fn handle_empty_samples() {
+        let samples = vec![];
+        let spectrogram = audio_to_spectrogram(&samples, 44100, 1024, 512);
+        assert!(spectrogram.is_empty());
+    }
+
+    #[test]
+    fn handle_invalid_sample_rate() {
+        let samples = vec![1i16, 2, 3, 4];
+        let spectrogram = audio_to_spectrogram(&samples, 0, 1024, 512);
+        assert!(spectrogram.is_empty());
+    }
+
+    #[test]
+    fn handle_invalid_fft_params() {
+        let samples = vec![1i16, 2, 3, 4];
+
+        let spectrogram_frame = audio_to_spectrogram(&samples, 44100, 1, 512);
+        assert!(spectrogram_frame.is_empty());
+
+        let spectrogram_hop = audio_to_spectrogram(&samples, 44100, 1024, 0);
+        assert!(spectrogram_hop.is_empty());
     }
 }
