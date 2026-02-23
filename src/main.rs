@@ -1,10 +1,11 @@
-use shazam::{db::create_db::Database, pipeline::fingerprint_wav};
+use shazam::{db::create_db::Database, pipeline::{fingerprint_wav, fingerprint_wav_with_report}};
 
 const DEFAULT_DB_PATH: &str = "shazam.db";
 const DEFAULT_WINDOW_SIZE: usize = 1024;
 const DEFAULT_HOP_SIZE: usize = 512;
 const DEFAULT_ANCHOR_WINDOW: usize = 50;
 const DEFAULT_THRESHOLD_DB: f32 = -20.0;
+const MIN_RECOMMENDED_INDEX_DURATION_SECONDS: f32 = 15.0;
 
 enum Command {
     Index {
@@ -30,8 +31,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             artist,
             db_path,
         } => {
+            let run_start = std::time::Instant::now();
             let mut db = Database::open(&db_path)?;
-            let fingerprints = fingerprint_wav(
+            let (fingerprints, report) = fingerprint_wav_with_report(
                 &wav_path,
                 DEFAULT_THRESHOLD_DB,
                 DEFAULT_WINDOW_SIZE,
@@ -40,12 +42,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?;
 
             db.register_song(&wav_path, &title, &artist, &fingerprints)?;
+
+            println!("✅ Indexed '{}' by '{}'", title, artist);
+            println!("Path: {}", wav_path);
+            println!("Database: {}", db_path);
+            println!("Sample Rate: {} Hz", report.sample_rate);
+            println!("Duration: {:.2} s", report.duration_seconds);
+            println!("Samples: {}", report.sample_count);
+            println!("Frames: {}", report.frame_count);
+            println!("Peaks: {}", report.peak_count);
+            println!("Fingerprints: {}", report.fingerprint_count);
             println!(
-                "✅ Indexed '{}' by '{}' ({} fingerprints)",
-                title,
-                artist,
-                fingerprints.len()
+                "Params: window_size={}, hop_size={}, anchor_window={}, threshold_db={}",
+                DEFAULT_WINDOW_SIZE, DEFAULT_HOP_SIZE, DEFAULT_ANCHOR_WINDOW, DEFAULT_THRESHOLD_DB
             );
+            println!("Index Time: {} ms", run_start.elapsed().as_millis());
+
+            if should_warn_short_index(report.duration_seconds) {
+                println!(
+                    "⚠️ Warning: indexed audio is {:.2}s (recommended >= {:.0}s for stable identification)",
+                    report.duration_seconds,
+                    MIN_RECOMMENDED_INDEX_DURATION_SECONDS
+                );
+                println!("   Tip: use 'recognize' for snippets and 'index' for reference tracks.");
+            }
         }
         Command::Recognize { wav_path, db_path } => {
             let db = Database::open(&db_path)?;
@@ -137,6 +157,10 @@ fn parse_db_path(args: &[String], offset: usize) -> Result<String, Box<dyn std::
     Err("invalid arguments after required positional values".into())
 }
 
+fn should_warn_short_index(duration_seconds: f32) -> bool {
+    duration_seconds < MIN_RECOMMENDED_INDEX_DURATION_SECONDS
+}
+
 fn print_usage() {
     println!("Usage:");
     println!("  shazam index <wav_path> <title> <artist> [--db <db_path>]");
@@ -198,5 +222,11 @@ mod tests {
     fn fail_on_missing_command() {
         let args = vec!["shazam".to_string()];
         assert!(parse_cli(&args).is_err());
+    }
+
+    #[test]
+    fn warn_for_short_index_duration() {
+        assert!(should_warn_short_index(5.0));
+        assert!(!should_warn_short_index(25.0));
     }
 }
