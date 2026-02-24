@@ -65,7 +65,13 @@ cargo build
 cargo run -- --help
 ```
 
-> Note: pass app args after `--` when using `cargo run`.
+> Note: pass app args after `--` when using `cargo run`.  
+
+Diagnose issues using
+
+```bash
+cargo test
+```
 
 ---
 
@@ -174,12 +180,6 @@ cargo run -- store input.wav "My Song" "My Artist"
 
 # 3) Recognize clip
 cargo run -- recognize clip.wav
-```
-
-## Testing
-
-```bash
-cargo test
 ```
 
 ---
