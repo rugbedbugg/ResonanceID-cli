@@ -519,7 +519,7 @@ fn has_help_flag(args: &[String], offset: usize) -> bool {
 }
 
 fn print_usage() {
-    println!("A chemistry-inspired audio fingerprint CLI.");
+    println!("A rust-based shazam-inspired audio fingerprinting and recognition tool.");
     println!();
     println!("USAGE");
     println!("  resonanceid-cli <command> [subcommand] [flags]");
