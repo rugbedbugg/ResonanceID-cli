@@ -1,5 +1,4 @@
 /target
-Cargo.lock
 *.txt
 
 # local experiment artifacts
@@ -9,3 +8,4 @@ Cargo.lock
 *.db-shm
 *.wav
 *.mp3
+

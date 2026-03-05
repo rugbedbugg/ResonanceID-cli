@@ -123,6 +123,7 @@ Fingerprint options:
 - `--hop-size <n>`
 - `--anchor-window <n>`
 - `--threshold-db <f32>`
+- `--auto-clip` (center clip; default 20s if duration not specified)
 
 Recognition options:
 
@@ -130,6 +131,7 @@ Recognition options:
 - `--dynamic-gate-scale <f32>`
 - `--small-query-threshold <n>`
 - `--max-results <n>`
+- `--auto-clip` (center clip; default 20s if duration not specified)
 
 Clip options (store/remember):
 
@@ -157,12 +159,12 @@ Example config:
 [fingerprint]
 window_size = 1024
 hop_size = 512
-anchor_window = 50
+anchor_window = 5
 threshold_db = -20.0
 
 [recognition]
 min_match_score = 2
-dynamic_gate_scale = 30.0
+dynamic_gate_scale = 0.3
 small_query_threshold = 1000
 max_results = 5
 ```
