@@ -41,7 +41,7 @@ impl Default for FingerprintConfig {
         Self {
             window_size: 1024,
             hop_size: 512,
-            anchor_window: 50,
+            anchor_window: 5,
             threshold_db: -20.0,
         }
     }
@@ -51,7 +51,7 @@ impl Default for RecognitionConfig {
     fn default() -> Self {
         Self {
             min_match_score: 2,
-            dynamic_gate_scale: 30.0,
+            dynamic_gate_scale: 0.3,
             small_query_threshold: 1000,
             max_results: 5,
         }

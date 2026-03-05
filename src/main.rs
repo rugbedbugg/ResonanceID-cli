@@ -1,7 +1,7 @@
 use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
-    pipeline::{fingerprint_wav, fingerprint_wav_with_report_and_clip, ClipOptions},
+    pipeline::{fingerprint_wav_with_report_and_clip, ClipOptions},
 };
 
 const DEFAULT_DB_PATH: &str = "resonanceid-cli.db";
@@ -153,12 +153,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
-            let fingerprints = fingerprint_wav(
+            let clip_options = ClipOptions {
+                clip_start_seconds: overrides.clip_start_seconds,
+                clip_duration_seconds: overrides.clip_duration_seconds,
+                auto_clip: overrides.auto_clip,
+            };
+            let (fingerprints, _report) = fingerprint_wav_with_report_and_clip(
                 &wav_path,
                 cfg.fingerprint.threshold_db,
                 cfg.fingerprint.window_size,
                 cfg.fingerprint.hop_size,
                 cfg.fingerprint.anchor_window,
+                clip_options,
             )?;
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
@@ -189,12 +195,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
-            let fingerprints = fingerprint_wav(
+            let clip_options = ClipOptions {
+                clip_start_seconds: overrides.clip_start_seconds,
+                clip_duration_seconds: overrides.clip_duration_seconds,
+                auto_clip: overrides.auto_clip,
+            };
+            let (fingerprints, _report) = fingerprint_wav_with_report_and_clip(
                 &wav_path,
                 cfg.fingerprint.threshold_db,
                 cfg.fingerprint.window_size,
                 cfg.fingerprint.hop_size,
                 cfg.fingerprint.anchor_window,
+                clip_options,
             )?;
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;

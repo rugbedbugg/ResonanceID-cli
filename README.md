@@ -1,7 +1,7 @@
 # ResonanceID-cli
-![GitHub last commit](https://img.shields.io/github/last-commit/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000&color=9ccbfb)
-![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000&color=d3bfe6)
-![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000&color=9ccbfe6)
+![GitHub last commit](https://img.shields.io/github/last-commit/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
+![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
+![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 
 A Rust-based audio fingerprinting CLI inspired by Shazam-style matching.
 

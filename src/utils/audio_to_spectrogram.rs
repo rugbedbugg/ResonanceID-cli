@@ -26,7 +26,7 @@ pub fn audio_to_spectrogram(
         // Zero-pad if frame is shorter than frame_size
         for i in 0..frame_size {
             let sample = if i < frame_len {
-                samples[start + i] as f32 / sample_rate as f32
+                samples[start + i] as f32 / i16::MAX as f32
             } else { 0.0 };
             frame_f32[i] = Complex::new(sample, 0.0);
         }
