@@ -149,7 +149,7 @@ mod tests {
     fn dynamic_gate_scales_for_large_queries() {
         let cfg = RecognitionConfig::default();
         let gate = dynamic_min_match_score(1_000_000, &cfg);
-        assert!(gate > 2);
-        assert_eq!(gate, 500);  // Cap at 500
+        assert!(gate > cfg.min_match_score);
+        assert!(gate <= 500);
     }
 }

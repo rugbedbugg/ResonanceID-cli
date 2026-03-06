@@ -188,7 +188,7 @@ dependencies = [
 
 [[package]]
 name = "resonanceid-cli"
-version = "0.8.3"
+version = "0.8.2"
 dependencies = [
  "hound",
  "rusqlite",
