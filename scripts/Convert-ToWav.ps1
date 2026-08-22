@@ -12,6 +12,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$PSNativeCommandUseErrorActionPreference = $true
 
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Error "ffmpeg not found on PATH. Install it first (winget install Gyan.FFmpeg)."
@@ -25,6 +26,11 @@ if (-not $OutputFile) {
     $OutputFile = [IO.Path]::ChangeExtension($InputFile, ".wav")
 }
 
-ffmpeg -y -i $InputFile -ac 1 -ar 44100 -sample_fmt s16 $OutputFile
+ffmpeg -y -hide_banner -i $InputFile -ac 1 -ar 44100 -sample_fmt s16 $OutputFile
+
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $OutputFile)) {
+    Remove-Item -LiteralPath $OutputFile -ErrorAction SilentlyContinue
+    Write-Error "ffmpeg failed to convert '$InputFile'. Is the source a valid audio file?"
+}
 
 Write-Host "Converted '$InputFile' -> '$OutputFile'"

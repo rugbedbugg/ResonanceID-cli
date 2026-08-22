@@ -3,6 +3,7 @@ pub mod utils {
     pub mod extract_peaks;
     pub mod peaks_to_hashes;
     pub mod read_wav;
+    pub mod record;
 }
 pub mod db {
     pub mod admin;

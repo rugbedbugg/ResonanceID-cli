@@ -1,11 +1,13 @@
 use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
-    pipeline::{fingerprint_wav_with_report_and_clip, ClipOptions},
+    pipeline::{fingerprint_samples, fingerprint_wav_with_report_and_clip, ClipOptions},
+    utils::record::record_mic_samples,
 };
 
 const DEFAULT_DB_PATH: &str = "resonanceid-cli.db";
 const MIN_RECOMMENDED_INDEX_DURATION_SECONDS: f32 = 15.0;
+const DEFAULT_LISTEN_DURATION_SECONDS: f32 = 10.0;
 
 enum Command {
     Store {
@@ -26,6 +28,13 @@ enum Command {
     },
     ListTopMatches {
         wav_path: String,
+        db_path: String,
+        config_path: Option<String>,
+        no_config: bool,
+        overrides: Overrides,
+    },
+    Listen {
+        duration_seconds: f32,
         db_path: String,
         config_path: Option<String>,
         no_config: bool,
@@ -53,6 +62,7 @@ struct Overrides {
     dynamic_gate_scale: Option<f32>,
     small_query_threshold: Option<usize>,
     max_results: Option<usize>,
+    min_margin_ratio: Option<f32>,
     clip_start_seconds: Option<f32>,
     clip_duration_seconds: Option<f32>,
     auto_clip: bool,
@@ -222,6 +232,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        Command::Listen {
+            duration_seconds,
+            db_path,
+            config_path,
+            no_config,
+            overrides,
+        } => {
+            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            apply_overrides(&mut cfg, &overrides);
+
+            let db = Database::open(&db_path)?;
+
+            let (samples, sample_rate) = record_mic_samples(duration_seconds)?;
+            let (fingerprints, report) = fingerprint_samples(
+                &samples,
+                sample_rate,
+                cfg.fingerprint.threshold_db,
+                cfg.fingerprint.window_size,
+                cfg.fingerprint.hop_size,
+                cfg.fingerprint.anchor_window,
+            );
+
+            if !config_report.loaded_paths.is_empty() {
+                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+            }
+            println!(
+                "Captured: {:.2}s @ {} Hz | frames={}, peaks={}, fingerprints={}",
+                report.duration_seconds, sample_rate, report.frame_count, report.peak_count, report.fingerprint_count
+            );
+
+            let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
+            if let Some((title, artist, score)) = matches.first() {
+                println!(
+                    "✅ Match found\nTop Match: {} - {} (match score: {})",
+                    title, artist, score
+                );
+            } else {
+                println!("❌ No matches found");
+            }
+
+            for (idx, (title, artist, score)) in matches.iter().enumerate() {
+                println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
+            }
+        }
         Command::ListSongs { db_path } => {
             let db = Database::open(&db_path)?;
             let songs = db.list_songs()?;
@@ -330,6 +384,24 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
                 overrides,
             })
         }
+        "listen" | "mic" | "record" => {
+            // resonanceid-cli listen [--duration <seconds>] [options]
+            if has_help_flag(args, 2) {
+                print_listen_usage();
+                return Err("help requested".into());
+            }
+
+            let (duration_seconds, rest) = extract_listen_duration(args)?;
+            let (db_path, config_path, no_config, overrides) = parse_common_options(&rest, 2)?;
+
+            Ok(Command::Listen {
+                duration_seconds,
+                db_path,
+                config_path,
+                no_config,
+                overrides,
+            })
+        }
         "list-songs" => {
             if has_help_flag(args, 2) {
                 print_list_songs_usage();
@@ -370,8 +442,31 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
     }
 }
 
-fn parse_db_only_option(args: &[String], offset: usize) -> Result<String, Box<dyn std::error::Error>> {
-    if args.len() == offset {
+/// Pulls `--duration <seconds>` out of the args (defaulting to 10s) and
+/// returns the remaining args with that flag removed.
+fn extract_listen_duration(args: &[String]) -> Result<(f32, Vec<String>), Box<dyn std::error::Error>> {
+    let mut duration_seconds = DEFAULT_LISTEN_DURATION_SECONDS;
+    let mut rest: Vec<String> = Vec::with_capacity(args.len());
+    rest.push(args[0].clone());
+
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--duration" {
+            if i + 1 >= args.len() {
+                return Err("--duration requires a value".into());
+            }
+            duration_seconds = args[i + 1].parse()?;
+            i += 2;
+        } else {
+            rest.push(args[i].clone());
+            i += 1;
+        }
+    }
+
+    Ok((duration_seconds, rest))
+}
+
+fn parse_db_only_option(args: &[String], offset: usize) -> Result<String, Box<dyn std::error::Error>> {    if args.len() == offset {
         return Ok(DEFAULT_DB_PATH.to_string());
     }
 
@@ -468,6 +563,17 @@ fn parse_common_options(
                 overrides.max_results = Some(args[i + 1].parse()?);
                 i += 2;
             }
+            "--min-margin-ratio" => {
+                if i + 1 >= args.len() {
+                    return Err("--min-margin-ratio requires a value".into());
+                }
+                let v: f32 = args[i + 1].parse()?;
+                if v < 1.0 {
+                    return Err("--min-margin-ratio must be >= 1.0 (1.0 disables the margin check)".into());
+                }
+                overrides.min_margin_ratio = Some(v);
+                i += 2;
+            }
             "--clip-start" => {
                 if i + 1 >= args.len() {
                     return Err("--clip-start requires a value".into());
@@ -520,6 +626,9 @@ fn apply_overrides(cfg: &mut AppConfig, overrides: &Overrides) {
     if let Some(v) = overrides.max_results {
         cfg.recognition.max_results = v;
     }
+    if let Some(v) = overrides.min_margin_ratio {
+        cfg.recognition.min_margin_ratio = v;
+    }
 }
 
 fn should_warn_short_index(duration_seconds: f32) -> bool {
@@ -540,6 +649,7 @@ fn print_usage() {
     println!("  store             Save a reference track into the fingerprint database");
     println!("  remember          Alias for 'store'");
     println!("  recognize         Identify the best match for an input clip");
+    println!("  listen            Record the microphone and identify what is playing");
     println!("  list-top-matches  Show ranked candidates for a clip");
     println!("  list-songs        List songs currently stored in the database");
     println!("  remove-song       Remove a song by id");
@@ -551,6 +661,7 @@ fn print_usage() {
     println!("EXAMPLES");
     println!("  $ resonanceid-cli store song.wav \"Song\" \"Artist\"");
     println!("  $ resonanceid-cli recognize clip.wav");
+    println!("  $ resonanceid-cli listen --duration 15");
     println!("  $ resonanceid-cli db-stats");
     println!();
     println!("LEARN MORE");
@@ -591,6 +702,7 @@ fn print_recognize_usage() {
     println!("  --dynamic-gate-scale <f32>");
     println!("  --small-query-threshold <n>");
     println!("  --max-results <n>");
+    println!("  --min-margin-ratio <f32>");
 }
 
 fn print_list_top_matches_usage() {
@@ -599,6 +711,31 @@ fn print_list_top_matches_usage() {
     println!();
     println!("TIP");
     println!("  Uses same options as 'recognize'.");
+}
+
+fn print_listen_usage() {
+    println!("USAGE");
+    println!("  resonanceid-cli listen [--duration <seconds>] [options]");
+    println!();
+    println!("DESCRIPTION");
+    println!("  Records from the default microphone and identifies the song");
+    println!("  against everything in the database. Audio is captured at the");
+    println!("  device rate, downmixed to mono, and normalized to 44.1 kHz.");
+    println!();
+    println!("OPTIONS");
+    println!("  --duration <seconds>   Recording length (default: {}s)", DEFAULT_LISTEN_DURATION_SECONDS as u32);
+    println!("  --db <db_path>");
+    println!("  --config <path>");
+    println!("  --no-config");
+    println!("  --window-size <n>");
+    println!("  --hop-size <n>");
+    println!("  --anchor-window <n>");
+    println!("  --threshold-db <f32>");
+    println!("  --min-match-score <n>");
+    println!("  --dynamic-gate-scale <f32>");
+    println!("  --small-query-threshold <n>");
+    println!("  --max-results <n>");
+    println!("  --min-margin-ratio <f32>");
 }
 
 fn print_list_songs_usage() {
@@ -808,6 +945,48 @@ mod tests {
         match command {
             Command::DbStats { db_path } => assert_eq!(db_path, DEFAULT_DB_PATH),
             _ => panic!("expected db-stats command"),
+        }
+    }
+
+    #[test]
+    fn parse_listen_command_with_duration() {
+        let args = vec![
+            "resonanceid-cli".to_string(),
+            "listen".to_string(),
+            "--duration".to_string(),
+            "15".to_string(),
+            "--db".to_string(),
+            "x.db".to_string(),
+            "--max-results".to_string(),
+            "3".to_string(),
+        ];
+
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::Listen {
+                duration_seconds,
+                db_path,
+                overrides,
+                ..
+            } => {
+                assert_eq!(duration_seconds, 15.0);
+                assert_eq!(db_path, "x.db");
+                assert_eq!(overrides.max_results, Some(3));
+            }
+            _ => panic!("expected listen command"),
+        }
+    }
+
+    #[test]
+    fn parse_mic_alias_defaults_to_ten_seconds() {
+        let args = vec!["resonanceid-cli".to_string(), "mic".to_string()];
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::Listen { duration_seconds, db_path, .. } => {
+                assert_eq!(duration_seconds, DEFAULT_LISTEN_DURATION_SECONDS);
+                assert_eq!(db_path, DEFAULT_DB_PATH);
+            }
+            _ => panic!("expected listen command"),
         }
     }
 

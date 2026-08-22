@@ -25,6 +25,7 @@ pub struct RecognitionConfig {
     pub dynamic_gate_scale: f32,
     pub small_query_threshold: usize,
     pub max_results: usize,
+    pub min_margin_ratio: f32,
 }
 
 impl Default for AppConfig {
@@ -54,6 +55,7 @@ impl Default for RecognitionConfig {
             dynamic_gate_scale: 0.3,
             small_query_threshold: 1000,
             max_results: 5,
+            min_margin_ratio: 1.25,
         }
     }
 }
@@ -80,6 +82,7 @@ struct RecognitionConfigPartial {
     dynamic_gate_scale: Option<f32>,
     small_query_threshold: Option<usize>,
     max_results: Option<usize>,
+    min_margin_ratio: Option<f32>,
 }
 
 impl AppConfig {
@@ -146,6 +149,9 @@ fn apply_partial(config: &mut AppConfig, partial: AppConfigPartial) {
     }
     if let Some(v) = partial.recognition.max_results {
         config.recognition.max_results = v;
+    }
+    if let Some(v) = partial.recognition.min_margin_ratio {
+        config.recognition.min_margin_ratio = v;
     }
 }
 

@@ -21,6 +21,7 @@ This project is being built for a **Design and Analysis of Algorithms** course, 
 
 - Store reference songs into a local SQLite fingerprint database
 - Recognize an unknown clip against everything stored
+- Record the microphone (`listen`) and identify what is playing
 - Show ranked candidates for a clip (`list-top-matches`)
 - Manage the database from the CLI (`list-songs`, `remove-song`, `db-stats`)
 - Layered TOML config (`/etc`, user config, local config), with CLI flags overriding all of it
@@ -33,6 +34,7 @@ This project is being built for a **Design and Analysis of Algorithms** course, 
 
 - **Rust** (edition 2024, needs rustc 1.85+)
 - **SQLite** via `rusqlite` (bundled, no system SQLite library required)
+- **Audio capture** via `cpal` (microphone input for `listen`)
 - **FFT** via `rustfft`
 - **WAV I/O** via `hound`
 - **TOML config** via `serde` + `toml`
@@ -116,6 +118,16 @@ resonanceid-cli list-top-matches <wav_path> [options]
 ```
 
 Same options as `recognize`, just prints the ranked list without singling out a "best" match.
+
+### Listen to the microphone
+
+```bash
+resonanceid-cli listen [--duration <seconds>] [options]
+```
+
+Aliases: `mic`, `record`.
+
+Records from the default input device, downmixes to mono, normalizes to 44.1 kHz, then recognizes against the database — same output as `recognize`. Recording length defaults to 10s; 10–15s works best since matching quality drops on very short clips.
 
 ### Database management
 
@@ -230,6 +242,9 @@ ffmpeg -y -i input.mp3 -ac 1 -ar 44100 -sample_fmt s16 input.wav
 
 # 3) Recognize a clip against it
 .\target\release\resonanceid-cli.exe recognize clip.wav
+
+# ...or just play the song out loud and let the mic hear it
+.\target\release\resonanceid-cli.exe listen --duration 12
 ```
 
 Or use the bundled helper scripts (`scripts/`):

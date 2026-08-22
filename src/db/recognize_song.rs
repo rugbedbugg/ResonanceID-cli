@@ -96,6 +96,17 @@ impl Database {
         let mut ranked: Vec<_> = scores.into_iter().collect();
         ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
+        // Confidence margin: the winner must clearly beat the runner-up.
+        // Near-tied top scores mean the query aligned with noise, so report
+        // nothing rather than a guess. A lone candidate skips this check and
+        // still has to clear min_score_gate below.
+        if cfg.min_margin_ratio > 1.0
+            && ranked.len() > 1
+            && (ranked[0].1 as f32) < ranked[1].1 as f32 * cfg.min_margin_ratio
+        {
+            return Ok(Vec::new());
+        }
+
         let mut results = Vec::new();
         for (song_id, score) in ranked.into_iter().take(cfg.max_results) {
             if score < min_score_gate {

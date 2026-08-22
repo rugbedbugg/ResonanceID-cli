@@ -74,22 +74,50 @@ pub fn fingerprint_wav_with_report_and_clip(
     let (start_idx, end_idx) = resolve_clip_range(samples.len(), sample_rate, clip);
     let clipped_samples = &samples[start_idx..end_idx];
 
-    let spectrogram = audio_to_spectrogram(clipped_samples, sample_rate, window_size, hop_size);
-    let peaks = extract_peaks(&spectrogram, threshold_db);
-    let fingerprints = peaks_to_fingerprints(&peaks, anchor_window, sample_rate, hop_size);
+    let (fingerprints, report) = fingerprint_samples(
+        clipped_samples,
+        sample_rate,
+        threshold_db,
+        window_size,
+        hop_size,
+        anchor_window,
+    );
 
     let report = FingerprintReport {
-        sample_rate,
-        sample_count: clipped_samples.len(),
-        frame_count: spectrogram.frames,
-        peak_count: peaks.len(),
-        fingerprint_count: fingerprints.len(),
-        duration_seconds: clipped_samples.len() as f32 / sample_rate as f32,
         clip_start_seconds: start_idx as f32 / sample_rate as f32,
         clip_duration_seconds: (end_idx - start_idx) as f32 / sample_rate as f32,
+        ..report
     };
 
     Ok((fingerprints, report))
+}
+
+/// Fingerprints raw mono PCM samples. Shared by the WAV and microphone paths.
+pub fn fingerprint_samples(
+    samples: &[i16],
+    sample_rate: u32,
+    threshold_db: f32,
+    window_size: usize,
+    hop_size: usize,
+    anchor_window: usize,
+) -> (Vec<Fingerprint>, FingerprintReport) {
+    let spectrogram = audio_to_spectrogram(samples, sample_rate, window_size, hop_size);
+    let peaks = extract_peaks(&spectrogram, threshold_db);
+    let fingerprints =
+        peaks_to_fingerprints(&peaks, anchor_window, sample_rate, hop_size);
+
+    let report = FingerprintReport {
+        sample_rate,
+        sample_count: samples.len(),
+        frame_count: spectrogram.frames,
+        peak_count: peaks.len(),
+        fingerprint_count: fingerprints.len(),
+        duration_seconds: samples.len() as f32 / sample_rate.max(1) as f32,
+        clip_start_seconds: 0.0,
+        clip_duration_seconds: samples.len() as f32 / sample_rate.max(1) as f32,
+    };
+
+    (fingerprints, report)
 }
 
 fn resolve_clip_range(
