@@ -68,11 +68,12 @@ impl Database {
         )?;
 
         //------------------------------------------//
-        //-- Indexes for fast recognition lookups --//
+        //-- Index for song-based lookups         --//
+        //-- (hash lookups are covered by the     --//
+        //--  leading column of the primary key)  --//
         //------------------------------------------//
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_fingerprints_hash \
-             ON fingerprints(hash)",
+            "DROP INDEX IF EXISTS idx_fingerprints_hash",
             [],
         )?;
         conn.execute(

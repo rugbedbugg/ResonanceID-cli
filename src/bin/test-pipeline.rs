@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loaded {} samples at {} Hz", samples.len(), sample_rate);
 
     let spectrogram = audio_to_spectrogram(&samples, sample_rate, 1024, 512);
-    println!("Computed {} time frames", spectrogram.len());
+    println!("Computed {} time frames", spectrogram.frames);
 
     let peaks = extract_peaks(&spectrogram, -20.0);
     println!("Found {} peaks", peaks.len());

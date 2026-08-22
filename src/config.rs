@@ -152,10 +152,17 @@ fn apply_partial(config: &mut AppConfig, partial: AppConfigPartial) {
 fn default_config_paths() -> Vec<String> {
     let mut paths = Vec::new();
 
-    paths.push("/etc/resonanceid-cli/config.toml".to_string());
+    if cfg!(windows) {
+        // %APPDATA%\resonanceid-cli\config.toml
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            paths.push(format!("{}\\resonanceid-cli\\config.toml", appdata));
+        }
+    } else {
+        paths.push("/etc/resonanceid-cli/config.toml".to_string());
 
-    if let Ok(home) = std::env::var("HOME") {
-        paths.push(format!("{}/.config/resonanceid-cli/config.toml", home));
+        if let Ok(home) = std::env::var("HOME") {
+            paths.push(format!("{}/.config/resonanceid-cli/config.toml", home));
+        }
     }
 
     paths.push("./resonanceid-cli.toml".to_string());

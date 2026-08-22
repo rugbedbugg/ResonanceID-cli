@@ -81,7 +81,7 @@ pub fn fingerprint_wav_with_report_and_clip(
     let report = FingerprintReport {
         sample_rate,
         sample_count: clipped_samples.len(),
-        frame_count: spectrogram.len(),
+        frame_count: spectrogram.frames,
         peak_count: peaks.len(),
         fingerprint_count: fingerprints.len(),
         duration_seconds: clipped_samples.len() as f32 / sample_rate as f32,
