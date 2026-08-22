@@ -1,5 +1,7 @@
 use crate::db::create_db::Database;
+use crate::db::fingerprint_codec::pack_anchor_times;
 use rusqlite::{Result, params};
+use std::collections::HashMap;
 
 impl Database {
     //////////////////////
@@ -8,7 +10,7 @@ impl Database {
     // Registers a song uniquely and stores its fingerprints.
     // i.   Upsert song metadata
     // ii.  Remove existing fingerprints (reindex)
-    // iii. Insert fingerprints
+    // iii. Insert fingerprints packed as (hash, song_id -> [anchor_time_ms])
     pub fn register_song(
         &mut self,
         path: &str,
@@ -45,18 +47,32 @@ impl Database {
         )?;
         //------------------------------------------------------------//
         //-- iii. Insert fingerprints                               --//
-        //--      Each fingerprint: (hash, song_id, anchor_time_ms) --//
+        //--       Grouped per hash; each row packs the anchor      --//
+        //--       times of one (hash, song_id) pair into a BLOB.   --//
         //------------------------------------------------------------//
         {
+            let mut grouped: HashMap<u32, Vec<u32>> = HashMap::new();
+            for &(hash, anchor_time_ms) in hashes {
+                grouped.entry(hash).or_default().push(anchor_time_ms);
+            }
+
+            let mut grouped: Vec<(u32, Vec<u32>)> = grouped.into_iter().collect();
+            grouped.sort_unstable_by_key(|&(hash, _)| hash);
+
             let mut stmt = tx.prepare(
                 "INSERT INTO \
-                fingerprints (hash, song_id, anchor_time_ms) \
-                VALUES (?, ?, ?) \
-                ON CONFLICT(hash, song_id, anchor_time_ms) DO NOTHING",
+                fingerprints (hash, song_id, anchor_times) \
+                VALUES (?, ?, ?)",
             )?;
 
-            for &(hash, anchor_time_ms) in hashes {
-                stmt.execute(params![hash as i64, song_id, anchor_time_ms as i64])?;
+            for (hash, mut times) in grouped {
+                times.sort_unstable();
+                times.dedup();
+                stmt.execute(params![
+                    hash as i64,
+                    song_id,
+                    pack_anchor_times(&times)
+                ])?;
             }
         }
 

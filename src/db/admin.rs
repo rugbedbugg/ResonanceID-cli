@@ -4,7 +4,8 @@ use rusqlite::{Result, params};
 impl Database {
     pub fn list_songs(&self) -> Result<Vec<(i64, String, String, String, u64)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT s.id, s.title, s.artist, s.path, COUNT(f.hash) as fp_count
+            "SELECT s.id, s.title, s.artist, s.path, \
+                    COALESCE(SUM(LENGTH(f.anchor_times)) / 4, 0) as fp_count
              FROM songs s
              LEFT JOIN fingerprints f ON s.id = f.song_id
              GROUP BY s.id, s.title, s.artist, s.path
@@ -39,9 +40,11 @@ impl Database {
             .conn
             .query_row("SELECT COUNT(*) FROM songs", [], |row| row.get(0))?;
 
-        let fingerprint_count: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM fingerprints", [], |row| row.get(0))?;
+        let fingerprint_count: i64 = self.conn.query_row(
+            "SELECT COALESCE(SUM(LENGTH(anchor_times)) / 4, 0) FROM fingerprints",
+            [],
+            |row| row.get(0),
+        )?;
 
         Ok((song_count as u64, fingerprint_count as u64))
     }

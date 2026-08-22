@@ -1,4 +1,4 @@
-use crate::{config::RecognitionConfig, db::create_db::Database};
+use crate::{config::RecognitionConfig, db::create_db::Database, db::fingerprint_codec::unpack_anchor_times};
 use rusqlite::{Result, params};
 
 fn dynamic_min_match_score(query_hash_count: usize, cfg: &RecognitionConfig) -> u32 {
@@ -53,7 +53,7 @@ impl Database {
         for chunk in unique_hashes.chunks(BATCH_SIZE) {
             let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
             let query = format!(
-                "SELECT hash, song_id, anchor_time_ms FROM fingerprints WHERE hash IN ({})",
+                "SELECT hash, song_id, anchor_times FROM fingerprints WHERE hash IN ({})",
                 placeholders
             );
 
@@ -61,17 +61,23 @@ impl Database {
 
             let params: Vec<&dyn rusqlite::ToSql> = chunk.iter().map(|h| h as &dyn rusqlite::ToSql).collect();
             let rows = stmt.query_map(params.as_slice(), |row: &rusqlite::Row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?))
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Vec<u8>>(2)?,
+                ))
             })?;
 
             for row in rows {
-                let (hash, song_id, db_time_ms) = row?;
+                let (hash, song_id, anchor_times_blob) = row?;
 
                 // For each query time that had this hash
                 if let Some(query_times) = hash_to_query_time.get(&(hash as u32)) {
-                    for &query_time in query_times {
-                        let offset = db_time_ms as i32 - query_time as i32;
-                        *offset_counts.entry((song_id, offset)).or_insert(0) += 1;
+                    for db_time_ms in unpack_anchor_times(&anchor_times_blob) {
+                        for &query_time in query_times {
+                            let offset = db_time_ms as i32 - query_time as i32;
+                            *offset_counts.entry((song_id, offset)).or_insert(0) += 1;
+                        }
                     }
                 }
             }
