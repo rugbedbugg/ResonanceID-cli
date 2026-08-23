@@ -129,6 +129,16 @@ Aliases: `mic`, `record`.
 
 Records from the default input device, downmixes to mono, normalizes to 44.1 kHz, then recognizes against the database — same output as `recognize`. Recording length defaults to 10s; 10–15s works best since matching quality drops on very short clips.
 
+### Import a whole folder
+
+```bash
+resonanceid-cli import <folder> [options]
+```
+
+Aliases: `bulk`.
+
+Indexes every supported audio file directly inside `<folder>` (non-recursive): `mp3`, `wav`, `flac`, `m4a`, `ogg`, `opus`, `wma`, `aac`. Non-WAV files are converted via ffmpeg into a throwaway temp folder that is deleted when the run finishes — **original files are never modified**. Titles/artists come from `Artist - Title.ext` filenames, falling back to the file stem / "Unknown Artist". Unreadable files are skipped with a warning instead of aborting the run.
+
 ### Database management
 
 ```bash

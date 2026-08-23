@@ -2,6 +2,7 @@ use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
     pipeline::{fingerprint_samples, fingerprint_wav_with_report_and_clip, ClipOptions},
+    utils::import::{cleanup_temp_dir, derive_title_artist, list_audio_files, prepare_wav},
     utils::record::record_mic_samples,
 };
 
@@ -35,6 +36,13 @@ enum Command {
     },
     Listen {
         duration_seconds: f32,
+        db_path: String,
+        config_path: Option<String>,
+        no_config: bool,
+        overrides: Overrides,
+    },
+    Import {
+        folder: String,
         db_path: String,
         config_path: Option<String>,
         no_config: bool,
@@ -276,6 +284,89 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
             }
         }
+        Command::Import {
+            folder,
+            db_path,
+            config_path,
+            no_config,
+            overrides,
+        } => {
+            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            apply_overrides(&mut cfg, &overrides);
+
+            if !config_report.loaded_paths.is_empty() {
+                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+            }
+
+            let files = list_audio_files(std::path::Path::new(&folder))?;
+            if files.is_empty() {
+                println!("No supported audio files found in '{}'", folder);
+                return Ok(());
+            }
+            println!("Found {} audio file(s) in '{}'", files.len(), folder);
+
+            let mut db = Database::open(&db_path)?;
+
+            // Throwaway conversion workspace; removed when the run finishes.
+            let temp_dir = std::env::temp_dir()
+                .join(format!("resonanceid-cli-import-{}", std::process::id()));
+            std::fs::create_dir_all(&temp_dir)?;
+
+            let mut indexed = 0usize;
+            let mut skipped = 0usize;
+
+            for file in &files {
+                let name = file.to_string_lossy().to_string();
+                let (title, artist) = derive_title_artist(file);
+
+                let result = prepare_wav(file, &temp_dir)
+                    .and_then(|prepared| {
+                        fingerprint_wav_with_report_and_clip(
+                            &prepared.wav_path.to_string_lossy(),
+                            cfg.fingerprint.threshold_db,
+                            cfg.fingerprint.window_size,
+                            cfg.fingerprint.hop_size,
+                            cfg.fingerprint.anchor_window,
+                            ClipOptions::default(),
+                        )
+                        .map_err(|e| e.into())
+                        .map(|fingerprints| (fingerprints.0, fingerprints.1.duration_seconds))
+                    });
+
+                match result {
+                    Ok((fingerprints, duration_seconds)) => {
+                        match db.register_song(&name, &title, &artist, &fingerprints) {
+                            Ok(()) => {
+                                indexed += 1;
+                                println!(
+                                    "✅ {} - {} | {:.1}s | {} fingerprints",
+                                    title,
+                                    artist,
+                                    duration_seconds,
+                                    fingerprints.len()
+                                );
+                            }
+                            Err(e) => {
+                                skipped += 1;
+                                println!("⚠️ Skipped '{}' (DB error: {e})", name);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        skipped += 1;
+                        println!("⚠️ Skipped '{}' ({e})", name);
+                    }
+                }
+            }
+
+            cleanup_temp_dir(&temp_dir);
+
+            println!();
+            println!(
+                "Done: {} indexed, {} skipped. Temporary conversions cleaned up.",
+                indexed, skipped
+            );
+        }
         Command::ListSongs { db_path } => {
             let db = Database::open(&db_path)?;
             let songs = db.list_songs()?;
@@ -396,6 +487,28 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
 
             Ok(Command::Listen {
                 duration_seconds,
+                db_path,
+                config_path,
+                no_config,
+                overrides,
+            })
+        }
+        "import" | "bulk" => {
+            // resonanceid-cli import <folder> [options]
+            if has_help_flag(args, 2) {
+                print_import_usage();
+                return Err("help requested".into());
+            }
+            if args.len() < 3 {
+                print_import_usage();
+                return Err("import requires <folder>".into());
+            }
+
+            let folder = args[2].clone();
+            let (db_path, config_path, no_config, overrides) = parse_common_options(args, 3)?;
+
+            Ok(Command::Import {
+                folder,
                 db_path,
                 config_path,
                 no_config,
@@ -649,6 +762,7 @@ fn print_usage() {
     println!("  store             Save a reference track into the fingerprint database");
     println!("  remember          Alias for 'store'");
     println!("  recognize         Identify the best match for an input clip");
+    println!("  import            Index every audio file in a folder");
     println!("  listen            Record the microphone and identify what is playing");
     println!("  list-top-matches  Show ranked candidates for a clip");
     println!("  list-songs        List songs currently stored in the database");
@@ -736,6 +850,28 @@ fn print_listen_usage() {
     println!("  --small-query-threshold <n>");
     println!("  --max-results <n>");
     println!("  --min-margin-ratio <f32>");
+}
+
+fn print_import_usage() {
+    println!("USAGE");
+    println!("  resonanceid-cli import <folder> [options]");
+    println!();
+    println!("DESCRIPTION");
+    println!("  Indexes every supported audio file directly inside <folder>");
+    println!("  (non-recursive). Supported: mp3, wav, flac, m4a, ogg, opus,");
+    println!("  wma, aac. Non-WAV files are converted to WAV in a throwaway");
+    println!("  temp folder that is deleted afterwards; originals are never");
+    println!("  modified. Titles/artists come from 'Artist - Title' filenames,");
+    println!("  falling back to '<stem>' / 'Unknown Artist'.");
+    println!();
+    println!("OPTIONS");
+    println!("  --db <db_path>");
+    println!("  --config <path>");
+    println!("  --no-config");
+    println!("  --window-size <n>");
+    println!("  --hop-size <n>");
+    println!("  --anchor-window <n>");
+    println!("  --threshold-db <f32>");
 }
 
 fn print_list_songs_usage() {
@@ -987,6 +1123,34 @@ mod tests {
                 assert_eq!(db_path, DEFAULT_DB_PATH);
             }
             _ => panic!("expected listen command"),
+        }
+    }
+
+    #[test]
+    fn parse_import_command() {
+        let args = vec![
+            "resonanceid-cli".to_string(),
+            "import".to_string(),
+            "C:\\music".to_string(),
+            "--db".to_string(),
+            "x.db".to_string(),
+            "--threshold-db".to_string(),
+            "-30".to_string(),
+        ];
+
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::Import {
+                folder,
+                db_path,
+                overrides,
+                ..
+            } => {
+                assert_eq!(folder, "C:\\music");
+                assert_eq!(db_path, "x.db");
+                assert_eq!(overrides.threshold_db, Some(-30.0));
+            }
+            _ => panic!("expected import command"),
         }
     }
 
