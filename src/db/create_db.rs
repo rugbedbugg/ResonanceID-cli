@@ -12,6 +12,9 @@ const SCHEMA_VERSION: i64 = 2;
 /// 2. Song recognition     (querying)
 pub struct Database {
     pub(crate) conn: Connection,
+    /// Path retained so recognition can open extra read-only connections
+    /// for parallel hash lookups.
+    pub(crate) path: String,
 }
 
 impl Database {
@@ -93,7 +96,7 @@ impl Database {
         //--------------------------------//
         //-- RETURN DATABASE CONNECTION --//
         //--------------------------------//
-        Ok(Database { conn })
+        Ok(Database { conn, path: path.to_string() })
     }
 }
 
