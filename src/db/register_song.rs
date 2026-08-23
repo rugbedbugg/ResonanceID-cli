@@ -14,8 +14,7 @@ impl Database {
     pub fn register_song(
         &mut self,
         path: &str,
-        title: &str,
-        artist: &str,
+        name: &str,
         hashes: &[(u32, u32)], // (hash, anchor_time_ms)
     ) -> Result<()> {
         //--------------------------//
@@ -28,14 +27,14 @@ impl Database {
         //---------------------------------------//
         let song_id: i64 = tx.query_row(
             "INSERT INTO \
-            songs (path, title, artist) \
-            VALUES (?, ?, ?) \
+            songs (path, title) \
+            VALUES (?, ?) \
             \
             ON CONFLICT(path) \
             DO UPDATE SET \
-            title = excluded.title, artist = excluded.artist \
+            title = excluded.title \
             RETURNING id",
-            params![path, title, artist],
+            params![path, name],
             |row: &rusqlite::Row| row.get(0),
         )?;
         //-----------------------------------------------//

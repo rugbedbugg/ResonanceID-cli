@@ -29,23 +29,13 @@ pub fn list_audio_files(folder: &Path) -> Result<Vec<PathBuf>, Box<dyn std::erro
     Ok(files)
 }
 
-/// Derives (title, artist) from a filename. Files named with the
-/// "Artist - Title" convention are split on the first separator;
-/// otherwise the whole stem becomes the title with an unknown artist.
-pub fn derive_title_artist(file: &Path) -> (String, String) {
-    let stem = file
-        .file_stem()
+/// The song name is the full filename stem — no artist parsing.
+pub fn derive_song_name(file: &Path) -> String {
+    file.file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("Untitled")
         .trim()
-        .to_string();
-
-    match stem.split_once(" - ") {
-        Some((artist, title)) if !artist.trim().is_empty() && !title.trim().is_empty() => {
-            (title.trim().to_string(), artist.trim().to_string())
-        }
-        _ => (stem, "Unknown Artist".to_string()),
-    }
+        .to_string()
 }
 
 pub struct PreparedWav {
@@ -120,27 +110,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn derives_title_artist_from_convention() {
+    fn song_name_is_full_file_stem() {
         let f = Path::new("C:\\music\\KITSCHKRIEG - Du Bist Gut Genug.mp3");
-        let (title, artist) = derive_title_artist(f);
-        assert_eq!(title, "Du Bist Gut Genug");
-        assert_eq!(artist, "KITSCHKRIEG");
-    }
+        assert_eq!(derive_song_name(f), "KITSCHKRIEG - Du Bist Gut Genug");
 
-    #[test]
-    fn falls_back_to_stem_and_unknown_artist() {
-        let f = Path::new("song_without_artist.flac");
-        let (title, artist) = derive_title_artist(f);
-        assert_eq!(title, "song_without_artist");
-        assert_eq!(artist, "Unknown Artist");
-    }
-
-    #[test]
-    fn keeps_hyphenated_titles_intact_when_one_side_missing() {
-        let f = Path::new("- Just a Title.wav");
-        let (title, artist) = derive_title_artist(f);
-        assert_eq!(artist, "Unknown Artist");
-        assert!(!title.is_empty());
+        let f2 = Path::new("song_without_artist.flac");
+        assert_eq!(derive_song_name(f2), "song_without_artist");
     }
 
     #[test]

@@ -6,7 +6,7 @@ use crate::utils::{
 };
 
 pub type Fingerprint = (u32, u32); // (hash, anchor_time_ms)
-pub type MatchResult = (String, String, f32); // (title, artist, score)
+pub type MatchResult = (String, f32); // (song_name, score)
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ClipOptions {

@@ -2,13 +2,13 @@ use crate::db::create_db::Database;
 use rusqlite::{Result, params};
 
 impl Database {
-    pub fn list_songs(&self) -> Result<Vec<(i64, String, String, String, u64)>> {
+    pub fn list_songs(&self) -> Result<Vec<(i64, String, String, u64)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT s.id, s.title, s.artist, s.path, \
+            "SELECT s.id, s.title, s.path, \
                     COALESCE(SUM(LENGTH(f.anchor_times)) / 4, 0) as fp_count
              FROM songs s
              LEFT JOIN fingerprints f ON s.id = f.song_id
-             GROUP BY s.id, s.title, s.artist, s.path
+             GROUP BY s.id, s.title, s.path
              ORDER BY s.id ASC",
         )?;
 
@@ -17,8 +17,7 @@ impl Database {
                 row.get::<_, i64>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i64>(4)? as u64,
+                row.get::<_, i64>(3)? as u64,
             ))
         })?;
 

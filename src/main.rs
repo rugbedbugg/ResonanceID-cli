@@ -2,7 +2,7 @@ use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
     pipeline::{fingerprint_samples, fingerprint_wav_with_report_and_clip, ClipOptions},
-    utils::import::{cleanup_temp_dir, derive_title_artist, list_audio_files, prepare_wav},
+    utils::import::{cleanup_temp_dir, derive_song_name, list_audio_files, prepare_wav},
     utils::record::record_mic_samples,
 };
 
@@ -13,8 +13,7 @@ const DEFAULT_LISTEN_DURATION_SECONDS: f32 = 10.0;
 enum Command {
     Store {
         wav_path: String,
-        title: String,
-        artist: String,
+        name: Option<String>,
         db_path: String,
         config_path: Option<String>,
         no_config: bool,
@@ -97,8 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match command {
         Command::Store {
             wav_path,
-            title,
-            artist,
+            name,
             db_path,
             config_path,
             no_config,
@@ -107,6 +105,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let run_start = std::time::Instant::now();
             let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
+
+            // Song name defaults to the full filename stem.
+            let name = name.unwrap_or_else(|| {
+                derive_song_name(std::path::Path::new(&wav_path))
+            });
 
             let mut db = Database::open(&db_path)?;
             let clip_options = ClipOptions {
@@ -123,9 +126,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 clip_options,
             )?;
 
-            db.register_song(&wav_path, &title, &artist, &fingerprints)?;
+            db.register_song(&wav_path, &name, &fingerprints)?;
 
-            println!("✅ Stored '{}' by '{}'", title, artist);
+            println!("✅ Stored '{name}'");
             if !config_report.loaded_paths.is_empty() {
                 println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
             }
@@ -189,17 +192,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !config_report.loaded_paths.is_empty() {
                 println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
             }
-            if let Some((title, artist, score)) = matches.first() {
+            if let Some((name, score)) = matches.first() {
                 println!(
-                    "✅ Match found\nTop Match: {} - {} (match score: {})",
-                    title, artist, score
+                    "✅ Match found\nTop Match: {name} (match score: {score})",
                 );
             } else {
                 println!("❌ No matches found");
             }
 
-            for (idx, (title, artist, score)) in matches.iter().enumerate() {
-                println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
+            for (idx, (name, score)) in matches.iter().enumerate() {
+                println!("{}. {} (score: {})", idx + 1, name, score);
             }
         }
         Command::ListTopMatches {
@@ -235,8 +237,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("❌ No matches found");
             } else {
                 println!("Top matches:");
-                for (idx, (title, artist, score)) in matches.iter().enumerate() {
-                    println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
+                for (idx, (name, score)) in matches.iter().enumerate() {
+                    println!("{}. {} (score: {})", idx + 1, name, score);
                 }
             }
         }
@@ -271,17 +273,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
-            if let Some((title, artist, score)) = matches.first() {
+            if let Some((name, score)) = matches.first() {
                 println!(
-                    "✅ Match found\nTop Match: {} - {} (match score: {})",
-                    title, artist, score
+                    "✅ Match found\nTop Match: {name} (match score: {score})",
                 );
             } else {
                 println!("❌ No matches found");
             }
 
-            for (idx, (title, artist, score)) in matches.iter().enumerate() {
-                println!("{}. {} - {} (score: {})", idx + 1, title, artist, score);
+            for (idx, (name, score)) in matches.iter().enumerate() {
+                println!("{}. {} (score: {})", idx + 1, name, score);
             }
         }
         Command::Import {
@@ -316,8 +317,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut skipped = 0usize;
 
             for file in &files {
-                let name = file.to_string_lossy().to_string();
-                let (title, artist) = derive_title_artist(file);
+                let path = file.to_string_lossy().to_string();
+                let name = derive_song_name(file);
 
                 let result = prepare_wav(file, &temp_dir)
                     .and_then(|prepared| {
@@ -335,26 +336,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 match result {
                     Ok((fingerprints, duration_seconds)) => {
-                        match db.register_song(&name, &title, &artist, &fingerprints) {
+                        match db.register_song(&path, &name, &fingerprints) {
                             Ok(()) => {
                                 indexed += 1;
                                 println!(
-                                    "✅ {} - {} | {:.1}s | {} fingerprints",
-                                    title,
-                                    artist,
+                                    "✅ {} | {:.1}s | {} fingerprints",
+                                    name,
                                     duration_seconds,
                                     fingerprints.len()
                                 );
                             }
                             Err(e) => {
                                 skipped += 1;
-                                println!("⚠️ Skipped '{}' (DB error: {e})", name);
+                                println!("⚠️ Skipped '{}' (DB error: {e})", path);
                             }
                         }
                     }
                     Err(e) => {
                         skipped += 1;
-                        println!("⚠️ Skipped '{}' ({e})", name);
+                        println!("⚠️ Skipped '{}' ({e})", path);
                     }
                 }
             }
@@ -373,8 +373,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if songs.is_empty() {
                 println!("No songs stored.");
             } else {
-                for (id, title, artist, path, fp_count) in songs {
-                    println!("{} | {} - {} | fingerprints={} | {}", id, title, artist, fp_count, path);
+                for (id, name, path, fp_count) in songs {
+                    println!("{} | {} | fingerprints={} | {}", id, name, fp_count, path);
                 }
             }
         }
@@ -406,25 +406,28 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
 
     match args[1].as_str() {
         "store" | "remember" | "index" => {
-            // resonanceid-cli store <wav_path> <title> <artist> [options]
+            // resonanceid-cli store <wav_path> [name] [options]
             if has_help_flag(args, 2) {
                 print_store_usage();
                 return Err("help requested".into());
             }
-            if args.len() < 5 {
+            if args.len() < 3 {
                 print_store_usage();
-                return Err("store requires <wav_path> <title> <artist>".into());
+                return Err("store requires <wav_path>".into());
             }
 
             let wav_path = args[2].clone();
-            let title = args[3].clone();
-            let artist = args[4].clone();
-            let (db_path, config_path, no_config, overrides) = parse_common_options(args, 5)?;
+            // Only treat args[3] as the name if it isn't a flag.
+            let name = args
+                .get(3)
+                .filter(|arg| !arg.starts_with('-'))
+                .cloned();
+            let offset = if name.is_some() { 4 } else { 3 };
+            let (db_path, config_path, no_config, overrides) = parse_common_options(args, offset)?;
 
             Ok(Command::Store {
                 wav_path,
-                title,
-                artist,
+                name,
                 db_path,
                 config_path,
                 no_config,
@@ -773,7 +776,7 @@ fn print_usage() {
     println!("  --help            Show help for command");
     println!();
     println!("EXAMPLES");
-    println!("  $ resonanceid-cli store song.wav \"Song\" \"Artist\"");
+    println!("  $ resonanceid-cli store song.wav");
     println!("  $ resonanceid-cli recognize clip.wav");
     println!("  $ resonanceid-cli listen --duration 15");
     println!("  $ resonanceid-cli db-stats");
@@ -785,7 +788,10 @@ fn print_usage() {
 
 fn print_store_usage() {
     println!("USAGE");
-    println!("  resonanceid-cli store <wav_path> <title> <artist> [options]");
+    println!("  resonanceid-cli store <wav_path> [name] [options]");
+    println!();
+    println!("DESCRIPTION");
+    println!("  Song name defaults to the full filename stem of <wav_path>.");
     println!();
     println!("OPTIONS");
     println!("  --db <db_path>");
@@ -861,8 +867,7 @@ fn print_import_usage() {
     println!("  (non-recursive). Supported: mp3, wav, flac, m4a, ogg, opus,");
     println!("  wma, aac. Non-WAV files are converted to WAV in a throwaway");
     println!("  temp folder that is deleted afterwards; originals are never");
-    println!("  modified. Titles/artists come from 'Artist - Title' filenames,");
-    println!("  falling back to '<stem>' / 'Unknown Artist'.");
+    println!("  modified. The song name is the full filename stem.");
     println!();
     println!("OPTIONS");
     println!("  --db <db_path>");
@@ -899,27 +904,44 @@ mod tests {
             "resonanceid-cli".to_string(),
             "store".to_string(),
             "songs/output.wav".to_string(),
-            "Test Song".to_string(),
-            "Test Artist".to_string(),
         ];
 
         let command = parse_cli(&args).unwrap();
         match command {
             Command::Store {
                 wav_path,
-                title,
-                artist,
+                name,
                 db_path,
                 config_path,
                 no_config,
                 ..
             } => {
                 assert_eq!(wav_path, "songs/output.wav");
-                assert_eq!(title, "Test Song");
-                assert_eq!(artist, "Test Artist");
+                assert!(name.is_none());
                 assert_eq!(db_path, DEFAULT_DB_PATH);
                 assert!(config_path.is_none());
                 assert!(!no_config);
+            }
+            _ => panic!("expected store command"),
+        }
+    }
+
+    #[test]
+    fn parse_store_command_with_explicit_name() {
+        let args = vec![
+            "resonanceid-cli".to_string(),
+            "store".to_string(),
+            "songs/output.wav".to_string(),
+            "My Song Name".to_string(),
+            "--db".to_string(),
+            "x.db".to_string(),
+        ];
+
+        let command = parse_cli(&args).unwrap();
+        match command {
+            Command::Store { name, db_path, .. } => {
+                assert_eq!(name.as_deref(), Some("My Song Name"));
+                assert_eq!(db_path, "x.db");
             }
             _ => panic!("expected store command"),
         }
@@ -972,7 +994,6 @@ mod tests {
             "remember".to_string(),
             "songs/output.wav".to_string(),
             "Test Song".to_string(),
-            "Test Artist".to_string(),
             "--config".to_string(),
             "custom.toml".to_string(),
             "--no-config".to_string(),

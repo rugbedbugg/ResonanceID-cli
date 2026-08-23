@@ -127,7 +127,7 @@ impl Database {
     // i.   Collect offset votes for matching hashes
     // ii.  Compute best offset score per song
     // iii. Rank and fetch metadata
-    pub fn recognize_song(&self, hashes: &[(u32, u32)]) -> Result<Vec<(String, String, f32)>> {
+    pub fn recognize_song(&self, hashes: &[(u32, u32)]) -> Result<Vec<(String, f32)>> {
         self.recognize_song_with_config(hashes, &RecognitionConfig::default())
     }
 
@@ -135,7 +135,7 @@ impl Database {
         &self,
         hashes: &[(u32, u32)],
         cfg: &RecognitionConfig,
-    ) -> Result<Vec<(String, String, f32)>> {
+    ) -> Result<Vec<(String, f32)>> {
         //---------------------------------------//
         //-- i. Candidate collection by offset --//
         //---------------------------------------//
@@ -258,16 +258,16 @@ impl Database {
                 continue;
             }
 
-            let (title, artist) = self
+            let name = self
                 .conn
                 .query_row(
-                    "SELECT title, artist FROM songs WHERE id=?",
+                    "SELECT title FROM songs WHERE id=?",
                     params![song_id],
-                    |row: &rusqlite::Row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                    |row: &rusqlite::Row| Ok(row.get::<_, String>(0)?),
                 )
-                .unwrap_or_else(|_| ("Unknown".to_string(), "Unknown".to_string()));
+                .unwrap_or_else(|_| "Unknown".to_string());
 
-            results.push((title, artist, score as f32));
+            results.push((name, score as f32));
         }
 
         //--------------------//

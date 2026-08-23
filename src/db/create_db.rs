@@ -4,7 +4,8 @@ use rusqlite::{Connection, Result};
 ///
 /// 1: one row per fingerprint (hash, song_id, anchor_time_ms)
 /// 2: one row per (hash, song_id) with anchor times packed into a BLOB
-const SCHEMA_VERSION: i64 = 2;
+/// 3: songs table drops the artist column; song name = full file stem
+const SCHEMA_VERSION: i64 = 3;
 
 /// Database abstraction.
 /// Owns a SQLite connection and provides:
@@ -48,6 +49,7 @@ impl Database {
         let version: i64 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         if version < SCHEMA_VERSION {
             migrate_legacy_fingerprints(&mut conn)?;
+            migrate_songs_drop_artist(&mut conn)?;
             conn.execute_batch(&format!("PRAGMA user_version = {SCHEMA_VERSION};"))?;
         }
 
@@ -55,14 +57,13 @@ impl Database {
         //-- i. Create 'songs' table
         //--    - stores song metadata
         //--
-        //--    Attributes: (id, path, title, artist)
+        //--    Attributes: (id, path, title)
         //----------------------------------------------//
         conn.execute(
             "CREATE TABLE IF NOT EXISTS songs ( \
                 id INTEGER PRIMARY KEY, \
                 path TEXT UNIQUE, \
-                title TEXT, \
-                artist TEXT \
+                title TEXT \
             )",
             [],
         )?;
@@ -196,6 +197,67 @@ fn migrate_legacy_fingerprints(conn: &mut Connection) -> Result<()> {
     // DROP TABLE leaves the freed pages in the file; reclaim them so the
     // packed layout actually shrinks the database on disk.
     conn.execute("VACUUM", [])?;
+
+    Ok(())
+}
+
+//-------------------------------------------------------------------------//
+//-- Songs migration                                                     --//
+//-- v1/v2 stored (path, title, artist); v3 stores only the song name,   --//
+//-- which is the full filename stem of the indexed path. Uses           --//
+//-- ALTER TABLE DROP COLUMN so the fingerprints table (which cascades   --//
+//-- on songs deletions) is never touched.                              --//
+//-------------------------------------------------------------------------//
+fn migrate_songs_drop_artist(conn: &mut Connection) -> Result<()> {
+    let has_artist = {
+        let mut stmt = conn.prepare("PRAGMA table_info(songs)")?;
+        let names = stmt.query_map([], |row| row.get::<_, String>(1))?;
+        let mut found = false;
+        for name in names {
+            if name? == "artist" {
+                found = true;
+            }
+        }
+        found
+    };
+
+    if !has_artist {
+        return Ok(());
+    }
+
+    eprintln!("Migrating songs to name-only format (one-time)...");
+
+    // PRAGMA foreign_keys is a no-op inside a transaction, so flip it here.
+    // DROP COLUMN never fires cascades itself, but be explicit anyway.
+    conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+
+    let tx = conn.transaction()?;
+
+    tx.execute("ALTER TABLE songs DROP COLUMN artist", [])?;
+
+    // Re-derive song names from the indexed filename stems.
+    let entries: Vec<(i64, String)> = {
+        let mut stmt = tx.prepare("SELECT id, path FROM songs ORDER BY id")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()?
+    };
+
+    {
+        let mut update = tx.prepare("UPDATE songs SET title = ? WHERE id = ?")?;
+        for (id, path) in entries {
+            let stem = std::path::Path::new(&path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Untitled")
+                .to_string();
+            update.execute(rusqlite::params![stem, id])?;
+        }
+    }
+
+    tx.commit()?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;");
 
     Ok(())
 }

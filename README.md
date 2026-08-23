@@ -98,10 +98,12 @@ cargo run -- --help
 ### Store a reference track
 
 ```bash
-resonanceid-cli store <wav_path> "<Title>" "<Artist>" [options]
+resonanceid-cli store <wav_path> [name] [options]
 ```
 
 Aliases: `remember`, `index`.
+
+The song name defaults to the full filename stem of `<wav_path>`; pass `[name]` to override it.
 
 ### Recognize a clip
 
@@ -137,7 +139,7 @@ resonanceid-cli import <folder> [options]
 
 Aliases: `bulk`.
 
-Indexes every supported audio file directly inside `<folder>` (non-recursive): `mp3`, `wav`, `flac`, `m4a`, `ogg`, `opus`, `wma`, `aac`. Non-WAV files are converted via ffmpeg into a throwaway temp folder that is deleted when the run finishes — **original files are never modified**. Titles/artists come from `Artist - Title.ext` filenames, falling back to the file stem / "Unknown Artist". Unreadable files are skipped with a warning instead of aborting the run.
+Indexes every supported audio file directly inside `<folder>` (non-recursive): `mp3`, `wav`, `flac`, `m4a`, `ogg`, `opus`, `wma`, `aac`. Non-WAV files are converted via ffmpeg into a throwaway temp folder that is deleted when the run finishes — **original files are never modified**. The song name is the full filename stem. Unreadable files are skipped with a warning instead of aborting the run.
 
 ### Database management
 
@@ -235,7 +237,7 @@ bash:
 ffmpeg -y -i input.mp3 -ac 1 -ar 44100 -sample_fmt s16 input.wav
 
 # 2) Store a reference track
-resonanceid-cli store input.wav "My Song" "My Artist"
+resonanceid-cli store input.wav
 
 # 3) Recognize a clip against it
 resonanceid-cli recognize clip.wav
@@ -248,7 +250,7 @@ PowerShell:
 ffmpeg -y -i input.mp3 -ac 1 -ar 44100 -sample_fmt s16 input.wav
 
 # 2) Store a reference track
-.\target\release\resonanceid-cli.exe store input.wav "My Song" "My Artist"
+.\target\release\resonanceid-cli.exe store input.wav
 
 # 3) Recognize a clip against it
 .\target\release\resonanceid-cli.exe recognize clip.wav
