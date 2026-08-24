@@ -49,6 +49,12 @@ A Rust-based audio fingerprinting CLI inspired by Shazam-style matching. It stor
 
 ## Install
 
+### Windows (Chocolatey)
+
+```powershell
+choco install resonanceid-cli
+```
+
 ### Arch Linux (AUR)
 
 ```bash
