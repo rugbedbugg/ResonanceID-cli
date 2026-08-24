@@ -4,18 +4,8 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![AUR version](https://img.shields.io/aur/version/resonanceid-cli?style=for-the-badge&labelColor=000000)
-![License](https://img.shields.io/github/license/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 
 A Rust-based audio fingerprinting CLI inspired by Shazam-style matching. It stores a reference track as a set of hashed spectral fingerprints, then identifies unknown clips by voting on the timing offset where the most fingerprints agree.
-
-This project is being built for a **Design and Analysis of Algorithms** course, with focus on:
-
-- fingerprint pipeline design
-- matching quality vs false positives
-- practical CLI workflows
-- measurable runtime behavior
-
----
 
 ## Features
 
@@ -28,8 +18,6 @@ This project is being built for a **Design and Analysis of Algorithms** course, 
 - Optional clipping for reference indexing (`--clip-start`, `--clip-duration`, `--auto-clip`)
 - Cross-platform: Linux and Windows (PowerShell helper scripts included)
 
----
-
 ## Tech Stack
 
 - **Rust** (edition 2024, needs rustc 1.85+)
@@ -38,8 +26,6 @@ This project is being built for a **Design and Analysis of Algorithms** course, 
 - **FFT** via `rustfft`
 - **WAV I/O** via `hound`
 - **TOML config** via `serde` + `toml`
-
----
 
 ## Pipeline
 
@@ -60,8 +46,6 @@ This project is being built for a **Design and Analysis of Algorithms** course, 
 4. Fingerprint generation (same hashing as above)
 5. Look up each hash in the database and record the time offset between query and match
 6. Rank candidate songs by whichever offset gets the most votes: a real match produces one dominant, consistent offset
-
----
 
 ## Install
 
@@ -91,7 +75,6 @@ cargo run -- --help
 
 > Args after `--` go to the program, not to cargo.
 
----
 
 ## CLI Commands
 
@@ -151,8 +134,6 @@ resonanceid-cli db-stats [--db <db_path>]
 
 Every command also accepts `--help` for its own usage summary.
 
----
-
 ## Options
 
 ### Common (all commands)
@@ -191,8 +172,6 @@ Every command also accepts `--help` for its own usage summary.
 
 Indexing less than 15 seconds of audio prints a warning, matching quality gets unreliable below that.
 
----
-
 ## Config
 
 Without `--config`, these paths are checked in order and merged: later files override fields set by earlier ones.
@@ -225,8 +204,6 @@ dynamic_gate_scale = 0.3
 small_query_threshold = 1000
 max_results = 5
 ```
-
----
 
 ## Quick Demo
 
@@ -269,15 +246,11 @@ Or use the bundled helper scripts (`scripts/`):
 .\scripts\Invoke-ResonanceDemo.ps1 -Reference input.mp3 -Clip clip.wav
 ```
 
----
-
 ## Notes
 
 - Input must be **16-bit integer PCM WAV**. Anything else (float WAV, 24-bit, compressed formats) is rejected outright, convert with `ffmpeg` first.
 - WAV samples are read as a flat, single-channel stream. A stereo file will produce garbage fingerprints unless you downmix to mono first (`-ac 1` above).
 - For stable matching, reference clips of roughly 20–45 seconds work best; the tool will warn if you index under 15 seconds.
-
----
 
 ## Testing
 
@@ -286,8 +259,6 @@ cargo test
 ```
 
 Covers CLI argument parsing, config loading/layering, clip-range resolution, hashing, and DB integration.
-
----
 
 ## License
 
