@@ -551,6 +551,10 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
             print_usage();
             Err("help requested".into())
         }
+        "--version" | "-V" | "version" => {
+            println!("resonanceid-cli {}", env!("CARGO_PKG_VERSION"));
+            Err("help requested".into())
+        }
         _ => {
             print_usage();
             Err("unknown command".into())
