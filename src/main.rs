@@ -83,6 +83,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.remove(1);
     }
 
+    // Bare invocation shows usage and succeeds, so launcher smoke tests
+    // (e.g. winget portable validation) see a clean exit.
+    if args.len() < 2 {
+        print_usage();
+        return Ok(());
+    }
+
     let command = match parse_cli(&args) {
         Ok(cmd) => cmd,
         Err(err) => {
