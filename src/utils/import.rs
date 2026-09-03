@@ -111,8 +111,10 @@ mod tests {
 
     #[test]
     fn song_name_is_full_file_stem() {
-        let f = Path::new("C:\\music\\KITSCHKRIEG - Du Bist Gut Genug.mp3");
-        assert_eq!(derive_song_name(f), "KITSCHKRIEG - Du Bist Gut Genug");
+        // Build the path from components so the separator is correct on every
+        // platform (a literal "C:\\..." only parses as a dir + file on Windows).
+        let f: PathBuf = ["music", "KITSCHKRIEG - Du Bist Gut Genug.mp3"].iter().collect();
+        assert_eq!(derive_song_name(&f), "KITSCHKRIEG - Du Bist Gut Genug");
 
         let f2 = Path::new("song_without_artist.flac");
         assert_eq!(derive_song_name(f2), "song_without_artist");
