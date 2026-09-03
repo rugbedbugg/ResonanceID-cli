@@ -24,7 +24,7 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
           crate="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          echo "tag version:  $tag"
+          echo "tag version:   $tag"
           echo "crate version: $crate"
           if [ "$tag" != "$crate" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version $crate"
@@ -32,18 +32,25 @@ jobs:
           fi
 
   build:
-    name: build ${{ matrix.target }}
+    name: build ${{ matrix.artifact }}
     needs: verify
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Linux is built with cargo-zigbuild against an old glibc (2.17,
+          # RHEL 7 / Ubuntu 14.04 era) so one binary runs on essentially every
+          # glibc distro still in use. libasound is still a runtime dependency.
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
+            build_target: x86_64-unknown-linux-gnu.2.17
             artifact: resonanceid-cli-${{ github.ref_name }}-linux-x86_64
+            builder: zigbuild
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
+            build_target: x86_64-pc-windows-msvc
             artifact: resonanceid-cli-${{ github.ref_name }}-windows-x86_64.exe
+            builder: cargo
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -53,19 +60,36 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
       - name: Install Rust toolchain
-        run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
+        run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.rust_target }}
 
-      - name: Build
-        run: cargo build --release --locked --bin resonanceid-cli --target ${{ matrix.target }}
+      - name: Install Zig
+        if: matrix.builder == 'zigbuild'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.0
+
+      - name: Install cargo-zigbuild
+        if: matrix.builder == 'zigbuild'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - name: Build (zigbuild)
+        if: matrix.builder == 'zigbuild'
+        run: cargo zigbuild --release --locked --bin resonanceid-cli --target ${{ matrix.build_target }}
+
+      - name: Build (cargo)
+        if: matrix.builder == 'cargo'
+        run: cargo build --release --locked --bin resonanceid-cli --target ${{ matrix.build_target }}
 
       - name: Package binary and checksum
         shell: bash
         run: |
           mkdir dist
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cp "target/${{ matrix.target }}/release/resonanceid-cli.exe" "dist/${{ matrix.artifact }}"
+            cp "target/${{ matrix.rust_target }}/release/resonanceid-cli.exe" "dist/${{ matrix.artifact }}"
           else
-            cp "target/${{ matrix.target }}/release/resonanceid-cli" "dist/${{ matrix.artifact }}"
+            cp "target/${{ matrix.rust_target }}/release/resonanceid-cli" "dist/${{ matrix.artifact }}"
           fi
           cd dist
           sha256sum "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
