@@ -1,10 +1,10 @@
-/// Packing helpers for the compact fingerprints schema.
-///
-/// Legacy layout stored one SQLite row per fingerprint
-/// (hash, song_id, anchor_time_ms), wasting roughly half of each record on
-/// padding and row headers. The packed layout stores one row per
-/// (hash, song_id) pair whose BLOB holds the anchor times as a flat array of
-/// little-endian u32 milliseconds.
+//! Packing helpers for the compact fingerprints schema.
+//!
+//! Legacy layout stored one SQLite row per fingerprint
+//! (hash, song_id, anchor_time_ms), wasting roughly half of each record on
+//! padding and row headers. The packed layout stores one row per
+//! (hash, song_id) pair whose BLOB holds the anchor times as a flat array of
+//! little-endian u32 milliseconds.
 
 pub fn pack_anchor_times(times: &[u32]) -> Vec<u8> {
     let mut out = Vec::with_capacity(times.len() * 4);
@@ -15,8 +15,10 @@ pub fn pack_anchor_times(times: &[u32]) -> Vec<u8> {
 }
 
 pub fn unpack_anchor_times(blob: &[u8]) -> Vec<u32> {
-    blob.chunks_exact(4)
-        .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+    blob.as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| u32::from_le_bytes(*c))
         .collect()
 }
 

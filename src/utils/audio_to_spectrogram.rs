@@ -62,9 +62,7 @@ pub fn audio_to_spectrogram(
         for i in 0..frame_len {
             frame_f32[i] = Complex::new(samples[start + i] as f32 / i16::MAX as f32 * window[i], 0.0);
         }
-        for i in frame_len..frame_size {
-            frame_f32[i] = Complex::new(0.0, 0.0);
-        }
+        frame_f32[frame_len..frame_size].fill(Complex::new(0.0, 0.0));
 
         // Fast Fourier Transform
         fft.process(&mut frame_f32);

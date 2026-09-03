@@ -337,7 +337,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             cfg.fingerprint.anchor_window,
                             ClipOptions::default(),
                         )
-                        .map_err(|e| e.into())
                         .map(|fingerprints| (fingerprints.0, fingerprints.1.duration_seconds))
                     });
 
@@ -604,10 +603,13 @@ fn parse_db_only_option(args: &[String], offset: usize) -> Result<String, Box<dy
     Err("invalid db options".into())
 }
 
+/// Parsed shared CLI flags: `(db_path, config_path, no_config, overrides)`.
+type CommonOptions = (String, Option<String>, bool, Overrides);
+
 fn parse_common_options(
     args: &[String],
     offset: usize,
-) -> Result<(String, Option<String>, bool, Overrides), Box<dyn std::error::Error>> {
+) -> Result<CommonOptions, Box<dyn std::error::Error>> {
     let mut db_path = DEFAULT_DB_PATH.to_string();
     let mut config_path: Option<String> = None;
     let mut no_config = false;

@@ -84,9 +84,8 @@ fn query_batch(
         };
 
         // Iterate packed times directly; sorted ascending.
-        for chunk in blob.chunks_exact(4) {
-            let db_time =
-                i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        for &chunk in blob.as_chunks::<4>().0 {
+            let db_time = i32::from_le_bytes(chunk);
             for &query_time in query_times.iter() {
                 let offset = db_time.wrapping_sub(query_time as i32);
                 *votes.entry(pack_vote_key(song_id, offset)).or_insert(0) += 1;
@@ -263,7 +262,7 @@ impl Database {
                 .query_row(
                     "SELECT title FROM songs WHERE id=?",
                     params![song_id],
-                    |row: &rusqlite::Row| Ok(row.get::<_, String>(0)?),
+                    |row: &rusqlite::Row| row.get::<_, String>(0),
                 )
                 .unwrap_or_else(|_| "Unknown".to_string());
 

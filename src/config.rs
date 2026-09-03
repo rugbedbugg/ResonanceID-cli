@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AppConfig {
     pub fingerprint: FingerprintConfig,
     pub recognition: RecognitionConfig,
@@ -26,15 +26,6 @@ pub struct RecognitionConfig {
     pub small_query_threshold: usize,
     pub max_results: usize,
     pub min_margin_ratio: f32,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            fingerprint: FingerprintConfig::default(),
-            recognition: RecognitionConfig::default(),
-        }
-    }
 }
 
 impl Default for FingerprintConfig {
