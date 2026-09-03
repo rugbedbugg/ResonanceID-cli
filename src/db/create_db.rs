@@ -257,7 +257,7 @@ fn migrate_songs_drop_artist(conn: &mut Connection) -> Result<()> {
     }
 
     tx.commit()?;
-    conn.execute_batch("PRAGMA foreign_keys = ON;");
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
 
     Ok(())
 }
