@@ -16,6 +16,9 @@ path = "src/main.rs"
 name = "test-pipeline"
 path = "src/bin/test-pipeline.rs"
 
+[profile.release]
+strip = true
+
 [dependencies]
 cpal = "0.18.2"
 hound = "3.5"
