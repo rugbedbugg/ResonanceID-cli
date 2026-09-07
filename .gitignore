@@ -9,3 +9,7 @@
 *.wav
 *.mp3
 
+
+/out/
+
+__pycache__/
