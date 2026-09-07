@@ -1,0 +1,24 @@
+# mise orchestrates tasks; rustup owns the existing stable Rust toolchain.
+[tasks.setup]
+description = "Install the stable Rust toolchain and check components"
+run = "rustup toolchain install stable --profile minimal --component rustfmt --component clippy"
+
+[tasks.format]
+description = "Check Rust formatting"
+run = "rustup run stable cargo fmt --all -- --check"
+
+[tasks.build]
+description = "Build all workspace targets with the committed lockfile"
+run = "rustup run stable cargo build --locked --workspace --all-targets"
+
+[tasks.lint]
+description = "Run Clippy with warnings as errors"
+run = "rustup run stable cargo clippy --locked --workspace --all-targets -- -D warnings"
+
+[tasks.test]
+description = "Test the workspace"
+run = "rustup run stable cargo test --locked --workspace"
+
+[tasks.check]
+description = "Run the CI checks in order"
+run = ["mise run format", "mise run build", "mise run lint", "mise run test"]

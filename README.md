@@ -1,5 +1,7 @@
 # ResonanceID-cli
 
+[![CI](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml)
+
 ![GitHub last commit](https://img.shields.io/github/last-commit/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
@@ -260,9 +262,29 @@ Or use the bundled helper scripts (`scripts/`):
 
 ## Testing
 
+With mise and rustup installed, use the same tasks as CI:
+
 ```bash
-cargo test
+mise trust
+mise run setup
+mise run check
 ```
+
+`mise run check` runs formatting, build, Clippy and tests in order. Individual
+checks are `mise run format`, `mise run build`, `mise run lint` and `mise run test`.
+Rustup retains ownership of the existing stable toolchain. Build, lint and test
+commands use `Cargo.lock` with `--locked`; no dependency constraints change.
+
+CI checks Linux and Windows on pull requests, main/ci branch pushes and manual
+runs. Releases reuse that validation, smoke-test the built release binaries,
+then publish and verify their downloaded checksums. Only publication receives
+write permission. Manual release runs on branches validate and build artifacts
+without publishing; publishing requires a matching `v` version tag.
+
+The [pipeline baseline](.github/STANDARDS.md) documents the shared structure.
+Chocolatey metadata is maintained under `SUBMISSIONS/chocolatey`; merging it
+does not submit a package. The package revision there retains the approved
+1.0.0 binary independently of the application's development version.
 
 Covers CLI argument parsing, config loading/layering, clip-range resolution, hashing, and DB integration.
 
