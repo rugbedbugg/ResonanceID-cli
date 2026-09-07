@@ -2,45 +2,45 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   test:
-    name: build, test & clippy (${{ matrix.os }})
+    name: build, test and lint (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install ALSA dev headers (Linux, for cpal)
+      - name: Install ALSA development headers
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-
-      - name: Install Rust toolchain
-        run: rustup update stable --no-self-update && rustup default stable && rustup component add clippy
-
-      - name: Cache cargo registry and target
-        uses: actions/cache@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run setup
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.os }}-cargo-
-
-      - name: Build
-        run: cargo build --workspace --all-targets --verbose
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Test
-        run: cargo test --workspace --verbose
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+      - run: mise run format
+      - run: mise run build
+      - run: mise run lint
+      - run: mise run test

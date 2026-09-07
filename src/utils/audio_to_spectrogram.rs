@@ -13,7 +13,11 @@ pub struct Spectrogram {
 
 impl Spectrogram {
     pub fn empty() -> Self {
-        Self { data: Vec::new(), frames: 0, bins: 0 }
+        Self {
+            data: Vec::new(),
+            frames: 0,
+            bins: 0,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -27,11 +31,11 @@ impl Spectrogram {
 }
 
 pub fn audio_to_spectrogram(
-        samples: &[Sample],
-        sample_rate: u32,
-        frame_size: usize,      // If       1024
-        hop_size: usize,        // then     512 = 50% overlap
-    ) -> Spectrogram {
+    samples: &[Sample],
+    sample_rate: u32,
+    frame_size: usize, // If       1024
+    hop_size: usize,   // then     512 = 50% overlap
+) -> Spectrogram {
     // Guard invalid pipeline configuration
     if samples.is_empty() || sample_rate == 0 || frame_size < 2 || hop_size == 0 {
         return Spectrogram::empty();
@@ -47,8 +51,7 @@ pub fn audio_to_spectrogram(
     // Hamming window computed once instead of per-frame
     let window: Vec<f32> = (0..frame_size)
         .map(|i| {
-            0.54 - 0.46
-                * (2.0 * std::f32::consts::PI * i as f32 / (frame_size - 1) as f32).cos()
+            0.54 - 0.46 * (2.0 * std::f32::consts::PI * i as f32 / (frame_size - 1) as f32).cos()
         })
         .collect();
 
@@ -60,7 +63,8 @@ pub fn audio_to_spectrogram(
 
         // Zero-pad if frame is shorter than frame_size
         for i in 0..frame_len {
-            frame_f32[i] = Complex::new(samples[start + i] as f32 / i16::MAX as f32 * window[i], 0.0);
+            frame_f32[i] =
+                Complex::new(samples[start + i] as f32 / i16::MAX as f32 * window[i], 0.0);
         }
         frame_f32[frame_len..frame_size].fill(Complex::new(0.0, 0.0));
 
@@ -80,8 +84,6 @@ pub fn audio_to_spectrogram(
         bins,
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

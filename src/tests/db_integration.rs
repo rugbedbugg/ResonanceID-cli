@@ -6,7 +6,11 @@ fn temp_db_path() -> std::path::PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    path.push(format!("resonanceid_cli_test_{}_{}.db", std::process::id(), nanos));
+    path.push(format!(
+        "resonanceid_cli_test_{}_{}.db",
+        std::process::id(),
+        nanos
+    ));
     path
 }
 
@@ -103,7 +107,7 @@ fn sparse_query_match_with_inconsistent_offsets_is_filtered() {
     for i in 0..28u32 {
         query_hashes.push((900_000 + i, 10 + i));
     }
-    query_hashes.push((1001, 50));  // offset = 50
+    query_hashes.push((1001, 50)); // offset = 50
     query_hashes.push((1002, 151)); // offset = 49
 
     let matches = db.recognize_song(&query_hashes).unwrap();

@@ -152,8 +152,7 @@ impl Database {
         }
         let hash_to_query_time = std::sync::Arc::new(hash_to_query_time);
 
-        let unique_hashes: Vec<i64> =
-            hash_to_query_time.keys().map(|&h| h as i64).collect();
+        let unique_hashes: Vec<i64> = hash_to_query_time.keys().map(|&h| h as i64).collect();
 
         // Nothing to look up (e.g. silence produced zero fingerprints);
         // avoids a zero-sized chunk panic below.
@@ -297,7 +296,12 @@ mod tests {
 
     #[test]
     fn vote_keys_round_trip() {
-        let cases = [(1i64, 0i32), (42, -123_456), (130, 3_600_000), (u32::MAX as i64, i32::MIN)];
+        let cases = [
+            (1i64, 0i32),
+            (42, -123_456),
+            (130, 3_600_000),
+            (u32::MAX as i64, i32::MIN),
+        ];
         for (song, offset) in cases {
             let (s, o) = unpack_vote_key(pack_vote_key(song, offset));
             assert_eq!((s, o), (song, offset));

@@ -11,7 +11,9 @@ const MAX_NORMALIZATION_GAIN: f32 = 64.0;
 /// Records `duration_seconds` from the default input device.
 /// Returns mono 16-bit PCM samples resampled to 44.1 kHz so recordings
 /// are directly comparable with reference tracks indexed at that rate.
-pub fn record_mic_samples(duration_seconds: f32) -> Result<(Vec<i16>, u32), Box<dyn std::error::Error>> {
+pub fn record_mic_samples(
+    duration_seconds: f32,
+) -> Result<(Vec<i16>, u32), Box<dyn std::error::Error>> {
     if duration_seconds <= 0.0 || !duration_seconds.is_finite() {
         return Err("recording duration must be a positive number of seconds".into());
     }
@@ -63,7 +65,9 @@ pub fn record_mic_samples(duration_seconds: f32) -> Result<(Vec<i16>, u32), Box<
         other => return Err(format!("unsupported sample format: {other:?}").into()),
     };
 
-    stream.play().map_err(|e| format!("failed to start recording: {e}"))?;
+    stream
+        .play()
+        .map_err(|e| format!("failed to start recording: {e}"))?;
     println!("🎤 Recording {:.0}s...", duration_seconds);
     std::thread::sleep(std::time::Duration::from_secs_f32(duration_seconds));
     drop(stream);
@@ -106,7 +110,10 @@ fn normalize_rms(samples: &[f32], target_rms: f32, max_gain: f32) -> Vec<f32> {
     }
 
     let gain = (target_rms / mean_sq.sqrt()).min(max_gain);
-    samples.iter().map(|&s| (s * gain).clamp(-1.0, 1.0)).collect()
+    samples
+        .iter()
+        .map(|&s| (s * gain).clamp(-1.0, 1.0))
+        .collect()
 }
 
 /// Averages interleaved channel frames into a single mono track.
@@ -114,7 +121,10 @@ fn downmix_to_mono(samples: &[f32], channels: usize) -> Vec<f32> {
     if channels <= 1 || samples.is_empty() {
         return samples.to_vec();
     }
-    samples.chunks_exact(channels).map(|frame| frame.iter().sum::<f32>() / channels as f32).collect()
+    samples
+        .chunks_exact(channels)
+        .map(|frame| frame.iter().sum::<f32>() / channels as f32)
+        .collect()
 }
 
 /// Naive linear interpolation between source and target sample rates.
@@ -181,7 +191,9 @@ mod tests {
     #[test]
     fn normalize_quiet_signal_up_to_target() {
         // constant ±0.01 signal has rms 0.01 -> gain 10x to reach 0.1
-        let samples: Vec<f32> = (0..1000).map(|i| if i % 2 == 0 { 0.01 } else { -0.01 }).collect();
+        let samples: Vec<f32> = (0..1000)
+            .map(|i| if i % 2 == 0 { 0.01 } else { -0.01 })
+            .collect();
         let out = normalize_rms(&samples, 0.1, 64.0);
         let rms = (out.iter().map(|s| s * s).sum::<f32>() / out.len() as f32).sqrt();
         assert!((rms - 0.1).abs() < 1e-4);
@@ -199,7 +211,11 @@ mod tests {
     #[test]
     fn normalize_silence_untouched_and_gain_capped() {
         assert!(normalize_rms(&[], 0.1, 64.0).is_empty());
-        assert!(normalize_rms(&[0.0; 100], 0.1, 64.0).iter().all(|&s| s == 0.0));
+        assert!(
+            normalize_rms(&[0.0; 100], 0.1, 64.0)
+                .iter()
+                .all(|&s| s == 0.0)
+        );
 
         // near-silence must not exceed the max gain
         let quiet = vec![1e-6; 100];

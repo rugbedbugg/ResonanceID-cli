@@ -9,8 +9,11 @@
 *.wav
 *.mp3
 
+# local build output
+/out/
+__pycache__/
 
 # submission working copies: aur/ and winget-pkgs/ are separate upstream
-# clones (~1GB combined); only the chocolatey package source is tracked here
+# clones (~1GB combined); only the Chocolatey package source is tracked here
 /SUBMISSIONS/*
 !/SUBMISSIONS/chocolatey/

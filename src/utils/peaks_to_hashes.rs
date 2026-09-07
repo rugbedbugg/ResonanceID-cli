@@ -30,8 +30,8 @@ pub fn peaks_to_fingerprints(
             }
 
             let hash = ((anchor_bin as u32) << 20)
-                    | ((target_bin as u32) << 10)
-                    | ((delta_t as u32) & 0x3ff);
+                | ((target_bin as u32) << 10)
+                | ((delta_t as u32) & 0x3ff);
 
             fingerprints.push((hash, anchor_time_ms));
         }
@@ -40,18 +40,13 @@ pub fn peaks_to_fingerprints(
     fingerprints
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn generate_hashes_from_peaks() {
-        let peaks = vec![
-            (0, 100, 1.0),
-            (1, 150, 1.0),
-            (2, 200, 1.0),
-        ];
+        let peaks = vec![(0, 100, 1.0), (1, 150, 1.0), (2, 200, 1.0)];
 
         let hashes = peaks_to_hashes(&peaks, 50);
         assert!(!hashes.is_empty());
@@ -67,11 +62,7 @@ mod test {
 
     #[test]
     fn generate_fingerprints_with_anchor_time() {
-        let peaks = vec![
-            (10, 100, 1.0),
-            (12, 150, 1.0),
-            (15, 200, 1.0),
-        ];
+        let peaks = vec![(10, 100, 1.0), (12, 150, 1.0), (15, 200, 1.0)];
 
         let fingerprints = peaks_to_fingerprints(&peaks, 50, 1000, 100);
         assert!(!fingerprints.is_empty());

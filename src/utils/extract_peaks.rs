@@ -14,7 +14,11 @@ pub fn extract_peaks(spectrogram: &Spectrogram, threshold_db: f32) -> Vec<(usize
 
     // convert DB threshold to linear
     // fallback for invalid threshold values
-    let threshold_db = if threshold_db.is_nan() { -20.0 } else { threshold_db };
+    let threshold_db = if threshold_db.is_nan() {
+        -20.0
+    } else {
+        threshold_db
+    };
     let threshold_linear = 10.0f32.powf(threshold_db / 20.0);
 
     let bands: Vec<usize> = BAND_EDGE_FRACTIONS
@@ -34,7 +38,12 @@ pub fn extract_peaks(spectrogram: &Spectrogram, threshold_db: f32) -> Vec<(usize
             // Strongest bin within this band for this frame
             let mut best_bin = band_start;
             let mut best_mag = frame[band_start];
-            for (bin_idx, &mag) in frame.iter().enumerate().skip(band_start).take(band_end - band_start) {
+            for (bin_idx, &mag) in frame
+                .iter()
+                .enumerate()
+                .skip(band_start)
+                .take(band_end - band_start)
+            {
                 if mag > best_mag {
                     best_bin = bin_idx;
                     best_mag = mag;
@@ -49,7 +58,6 @@ pub fn extract_peaks(spectrogram: &Spectrogram, threshold_db: f32) -> Vec<(usize
 
     peaks
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -90,9 +98,9 @@ mod tests {
     fn one_peak_per_band() {
         // Two strong bins in different bands survive; a weak third does not.
         let mut frame = vec![0.0; 100];
-        frame[5] = 1.0;   // band [0..2]
-        frame[50] = 0.9;  // band [16..100]
-        frame[60] = 0.3;  // same band as 50 but weaker
+        frame[5] = 1.0; // band [0..2]
+        frame[50] = 0.9; // band [16..100]
+        frame[60] = 0.3; // same band as 50 but weaker
 
         let spectrogram = spectrogram(&[frame]);
         let peaks = extract_peaks(&spectrogram, -20.0);

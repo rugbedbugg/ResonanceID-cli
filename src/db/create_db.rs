@@ -97,7 +97,10 @@ impl Database {
         //--------------------------------//
         //-- RETURN DATABASE CONNECTION --//
         //--------------------------------//
-        Ok(Database { conn, path: path.to_string() })
+        Ok(Database {
+            conn,
+            path: path.to_string(),
+        })
     }
 }
 
@@ -123,9 +126,7 @@ fn migrate_legacy_fingerprints(conn: &mut Connection) -> Result<()> {
         return Ok(());
     }
 
-    eprintln!(
-        "Migrating fingerprints to packed storage format (one-time, may take a moment)..."
-    );
+    eprintln!("Migrating fingerprints to packed storage format (one-time, may take a moment)...");
     let tx = conn.transaction()?;
 
     tx.execute(
@@ -173,20 +174,13 @@ fn migrate_legacy_fingerprints(conn: &mut Connection) -> Result<()> {
         for ((hash, song_id), mut times) in grouped {
             times.sort_unstable();
             times.dedup();
-            insert.execute(rusqlite::params![
-                hash,
-                song_id,
-                pack_anchor_times(&times)
-            ])?;
+            insert.execute(rusqlite::params![hash, song_id, pack_anchor_times(&times)])?;
         }
         drop(insert);
     }
 
     tx.execute("DROP TABLE fingerprints", [])?;
-    tx.execute(
-        "ALTER TABLE fingerprints_packed RENAME TO fingerprints",
-        [],
-    )?;
+    tx.execute("ALTER TABLE fingerprints_packed RENAME TO fingerprints", [])?;
     tx.execute(
         "CREATE INDEX IF NOT EXISTS idx_fingerprints_song ON fingerprints(song_id)",
         [],

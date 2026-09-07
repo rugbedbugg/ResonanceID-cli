@@ -1,8 +1,6 @@
 use crate::utils::{
-    audio_to_spectrogram::audio_to_spectrogram,
-    extract_peaks::extract_peaks,
-    peaks_to_hashes::peaks_to_fingerprints,
-    read_wav::read_wav,
+    audio_to_spectrogram::audio_to_spectrogram, extract_peaks::extract_peaks,
+    peaks_to_hashes::peaks_to_fingerprints, read_wav::read_wav,
 };
 
 pub type Fingerprint = (u32, u32); // (hash, anchor_time_ms)
@@ -103,8 +101,7 @@ pub fn fingerprint_samples(
 ) -> (Vec<Fingerprint>, FingerprintReport) {
     let spectrogram = audio_to_spectrogram(samples, sample_rate, window_size, hop_size);
     let peaks = extract_peaks(&spectrogram, threshold_db);
-    let fingerprints =
-        peaks_to_fingerprints(&peaks, anchor_window, sample_rate, hop_size);
+    let fingerprints = peaks_to_fingerprints(&peaks, anchor_window, sample_rate, hop_size);
 
     let report = FingerprintReport {
         sample_rate,
@@ -120,11 +117,7 @@ pub fn fingerprint_samples(
     (fingerprints, report)
 }
 
-fn resolve_clip_range(
-    sample_count: usize,
-    sample_rate: u32,
-    clip: ClipOptions,
-) -> (usize, usize) {
+fn resolve_clip_range(sample_count: usize, sample_rate: u32, clip: ClipOptions) -> (usize, usize) {
     if sample_count == 0 || sample_rate == 0 {
         return (0, 0);
     }
@@ -132,7 +125,8 @@ fn resolve_clip_range(
     let full_start = 0usize;
     let full_end = sample_count;
 
-    if !clip.auto_clip && clip.clip_start_seconds.is_none() && clip.clip_duration_seconds.is_none() {
+    if !clip.auto_clip && clip.clip_start_seconds.is_none() && clip.clip_duration_seconds.is_none()
+    {
         return (full_start, full_end);
     }
 
@@ -165,7 +159,9 @@ fn resolve_clip_range(
     let end = (start + duration).min(total_duration);
 
     let start_idx = (start * sample_rate as f32) as usize;
-    let end_idx = ((end * sample_rate as f32) as usize).max(start_idx).min(sample_count);
+    let end_idx = ((end * sample_rate as f32) as usize)
+        .max(start_idx)
+        .min(sample_count);
 
     (start_idx, end_idx)
 }

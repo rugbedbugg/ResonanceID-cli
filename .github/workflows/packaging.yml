@@ -1,0 +1,149 @@
+name: Packaging
+
+on:
+  push:
+    branches: [main, 'packaging/**']
+    paths: ['SUBMISSIONS/**', 'scripts/packaging/**', '.github/workflows/packaging.yml', 'mise.toml']
+  pull_request:
+    paths: ['SUBMISSIONS/**', 'scripts/packaging/**', '.github/workflows/packaging.yml', 'mise.toml']
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable GitHub release tag
+        default: v1.0.1
+        required: true
+      publish:
+        description: Optional publication of validated packages (main only)
+        type: choice
+        options: [none, chocolatey, winget, aur]
+        default: none
+
+permissions:
+  contents: read
+
+concurrency:
+  group: packaging-${{ github.event_name == 'workflow_dispatch' && 'publication' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - run: mise run test-packaging
+      - name: Generate all manifests from one release
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || 'v1.0.1' }}
+        run: mise run prepare-packages -- --tag "$RELEASE_TAG"
+      - name: Read validated version
+        id: metadata
+        run: echo "version=$(jq -r .version out/packaging/release.json)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared
+          path: out/packaging/
+          if-no-files-found: error
+
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [chocolatey, winget]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared
+          path: prepared
+      - name: Validate, install, smoke-test and uninstall
+        shell: pwsh
+        run: ./scripts/packaging/windows.ps1 -Channel '${{ matrix.channel }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tested-${{ matrix.channel }}
+          path: prepared/${{ matrix.channel }}/
+          if-no-files-found: error
+
+  aur:
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: prepared
+          path: prepared
+      - name: Build, test and install in a disposable Arch container
+        run: bash scripts/packaging/aur.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tested-aur
+          include-hidden-files: true
+          path: |
+            prepared/aur/PKGBUILD
+            prepared/aur/.SRCINFO
+          if-no-files-found: error
+
+  publish-chocolatey:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == 'chocolatey'
+    needs: [prepare, windows, aur]
+    runs-on: windows-latest
+    environment: chocolatey
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: tested-chocolatey
+          path: package
+      - name: Publish the tested package
+        shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw 'Publish from main only' }
+          if (-not $env:CHOCOLATEY_API_KEY) { throw 'Configure CHOCOLATEY_API_KEY' }
+          $packages = @(Get-ChildItem package/*.nupkg)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one tested nupkg' }
+          choco push $packages[0].FullName --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey push failed' }
+
+  publish-git:
+    if: github.event_name == 'workflow_dispatch' && (inputs.publish == 'winget' || inputs.publish == 'aur')
+    needs: [prepare, windows, aur]
+    runs-on: ubuntu-latest
+    environment: packaging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: tested-${{ inputs.publish }}
+          path: tested
+      - uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.PACKAGING_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PACKAGING_GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_config_global: true
+      - name: Publish signed packaging commit
+        env:
+          CHANNEL: ${{ inputs.publish }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+        run: bash scripts/packaging/publish.sh

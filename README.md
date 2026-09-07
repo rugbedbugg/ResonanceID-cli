@@ -1,10 +1,11 @@
 # ResonanceID-cli
 
+[![CI](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml)
+
 ![GitHub last commit](https://img.shields.io/github/last-commit/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![AUR version](https://img.shields.io/aur/version/resonanceid-cli?style=for-the-badge&labelColor=000000)
-[![CI](https://img.shields.io/github/actions/workflow/status/rugbedbugg/ResonanceID-cli/ci.yml?branch=main&style=for-the-badge&labelColor=000000)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml)
 
 A Rust-based audio fingerprinting CLI inspired by Shazam-style matching. It stores a reference track as a set of hashed spectral fingerprints, then identifies unknown clips by voting on the timing offset where the most fingerprints agree.
 
@@ -263,32 +264,46 @@ Or use the bundled helper scripts (`scripts/`):
 
 ## Testing
 
+With mise and rustup installed, use the same tasks as CI:
+
 ```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo build --workspace --all-targets --locked
-cargo test --workspace --locked
+mise trust
+mise run setup
+mise run check
 ```
 
-These are the same formatting, lint, build, and test checks used by the CI
-workflow on Linux and Windows. The tests cover CLI argument parsing, config
-loading/layering, clip-range resolution, hashing, and database integration.
+`mise run check` runs formatting, build, Clippy and tests in order. Individual
+checks are `mise run format`, `mise run build`, `mise run lint` and `mise run test`.
+Rustup retains ownership of the existing stable toolchain. Build, lint and test
+commands use `Cargo.lock` with `--locked`; no dependency constraints change.
 
-Tagged releases are verified against the version in `Cargo.toml`, built for
-Linux and Windows, checksummed, and attached to a GitHub release. Chocolatey,
-Winget, and AUR publication remain separate package-channel operations that
-consume those release artifacts.
+CI checks Linux and Windows on pull requests, main/ci branch pushes and manual
+runs. Releases reuse that validation, smoke-test the built release binaries,
+then publish and verify their downloaded checksums. Only publication receives
+write permission. Manual release runs on branches validate and build artifacts
+without publishing; publishing requires a matching `v` version tag.
 
-## Development
+The [pipeline baseline](.github/STANDARDS.md) documents the shared structure.
+Chocolatey metadata is maintained under `SUBMISSIONS/chocolatey`; merging it
+does not submit a package. The package revision there retains the approved
+1.0.0 binary independently of the application's development version.
 
-Format changes with `cargo fmt --all` before opening a pull request. Keep
-sample audio and local databases out of commits; the repository's test suite
-uses generated temporary data. Pull requests should pass the complete CI
-workflow before they are merged.
+The tests cover CLI argument parsing, config loading/layering, clip-range
+resolution, hashing, and database integration.
 
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+### Package-channel automation
+
+[![Packaging](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/packaging.yml/badge.svg)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/packaging.yml)
+
+Chocolatey, Winget and AUR packages are prepared from the same published release
+and validated automatically. Publication is an explicit manual workflow choice;
+Winget opens an upstream PR and Chocolatey submissions undergo moderation.
+See [packaging instructions](SUBMISSIONS/README.md) for validation, release
+selection and required publishing credentials.
 
 ## Links
 

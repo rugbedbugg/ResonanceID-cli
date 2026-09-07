@@ -1,8 +1,6 @@
 use resonanceid_cli::utils::{
-    read_wav::read_wav,
-    audio_to_spectrogram::audio_to_spectrogram,
-    extract_peaks::extract_peaks,
-    peaks_to_hashes::peaks_to_hashes,
+    audio_to_spectrogram::audio_to_spectrogram, extract_peaks::extract_peaks,
+    peaks_to_hashes::peaks_to_hashes, read_wav::read_wav,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,4 +19,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
