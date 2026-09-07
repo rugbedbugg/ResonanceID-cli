@@ -61,7 +61,10 @@ pub fn prepare_wav(
     if ext == "wav" {
         // Try native use first; malformed WAVs fall through to ffmpeg,
         // which can often still decode them.
-        let direct = PreparedWav { wav_path: file.to_path_buf(), is_temporary: false };
+        let direct = PreparedWav {
+            wav_path: file.to_path_buf(),
+            is_temporary: false,
+        };
         if crate::utils::read_wav::read_wav(&file.to_string_lossy()).is_ok() {
             return Ok(direct);
         }
@@ -76,13 +79,7 @@ pub fn prepare_wav(
     let dest = temp_dir.join(format!("{stem}.wav"));
 
     let status = Command::new("ffmpeg")
-        .args([
-            "-y",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-i",
-        ])
+        .args(["-y", "-hide_banner", "-loglevel", "error", "-i"])
         .arg(file)
         .args(["-ac", "1", "-ar", "44100", "-sample_fmt", "s16"])
         .arg(&dest)
@@ -90,14 +87,13 @@ pub fn prepare_wav(
         .map_err(|e| format!("failed to launch ffmpeg (is it installed?): {e}"))?;
 
     if !status.success() || !dest.exists() {
-        return Err(format!(
-            "ffmpeg could not convert '{}'",
-            file.to_string_lossy()
-        )
-        .into());
+        return Err(format!("ffmpeg could not convert '{}'", file.to_string_lossy()).into());
     }
 
-    Ok(PreparedWav { wav_path: dest, is_temporary: true })
+    Ok(PreparedWav {
+        wav_path: dest,
+        is_temporary: true,
+    })
 }
 
 /// Removes the throwaway conversion folder, ignoring missing dirs.
@@ -113,7 +109,9 @@ mod tests {
     fn song_name_is_full_file_stem() {
         // Build the path from components so the separator is correct on every
         // platform (a literal "C:\\..." only parses as a dir + file on Windows).
-        let f: PathBuf = ["music", "KITSCHKRIEG - Du Bist Gut Genug.mp3"].iter().collect();
+        let f: PathBuf = ["music", "KITSCHKRIEG - Du Bist Gut Genug.mp3"]
+            .iter()
+            .collect();
         assert_eq!(derive_song_name(&f), "KITSCHKRIEG - Du Bist Gut Genug");
 
         let f2 = Path::new("song_without_artist.flac");

@@ -77,7 +77,10 @@ struct RecognitionConfigPartial {
 }
 
 impl AppConfig {
-    pub fn load(config_path: Option<&str>, no_config: bool) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load(
+        config_path: Option<&str>,
+        no_config: bool,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let (config, _report) = Self::load_with_report(config_path, no_config)?;
         Ok(config)
     }
@@ -181,7 +184,10 @@ mod tests {
     #[test]
     fn report_includes_preexisting_config_path() {
         let mut path = std::env::temp_dir();
-        path.push(format!("resonanceid_cli_config_test_{}.toml", std::process::id()));
+        path.push(format!(
+            "resonanceid_cli_config_test_{}.toml",
+            std::process::id()
+        ));
 
         std::fs::write(
             &path,

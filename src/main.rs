@@ -1,7 +1,7 @@
 use resonanceid_cli::{
     config::AppConfig,
     db::create_db::Database,
-    pipeline::{fingerprint_samples, fingerprint_wav_with_report_and_clip, ClipOptions},
+    pipeline::{ClipOptions, fingerprint_samples, fingerprint_wav_with_report_and_clip},
     utils::import::{cleanup_temp_dir, derive_song_name, list_audio_files, prepare_wav},
     utils::record::record_mic_samples,
 };
@@ -110,13 +110,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             overrides,
         } => {
             let run_start = std::time::Instant::now();
-            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) =
+                AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             // Song name defaults to the full filename stem.
-            let name = name.unwrap_or_else(|| {
-                derive_song_name(std::path::Path::new(&wav_path))
-            });
+            let name = name.unwrap_or_else(|| derive_song_name(std::path::Path::new(&wav_path)));
 
             let mut db = Database::open(&db_path)?;
             let clip_options = ClipOptions {
@@ -137,7 +136,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("✅ Stored '{name}'");
             if !config_report.loaded_paths.is_empty() {
-                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+                println!(
+                    "Config: loaded from {}",
+                    config_report.loaded_paths.join(", ")
+                );
             }
             println!("Path: {}", wav_path);
             println!("Database: {}", db_path);
@@ -145,8 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Duration: {:.2} s", report.duration_seconds);
             println!(
                 "Clip Used: start={:.2}s, duration={:.2}s",
-                report.clip_start_seconds,
-                report.clip_duration_seconds
+                report.clip_start_seconds, report.clip_duration_seconds
             );
             println!("Samples: {}", report.sample_count);
             println!("Frames: {}", report.frame_count);
@@ -164,10 +165,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if should_warn_short_index(report.duration_seconds) {
                 println!(
                     "⚠️ Warning: indexed audio is {:.2}s (recommended >= {:.0}s for stable identification)",
-                    report.duration_seconds,
-                    MIN_RECOMMENDED_INDEX_DURATION_SECONDS
+                    report.duration_seconds, MIN_RECOMMENDED_INDEX_DURATION_SECONDS
                 );
-                println!("   Tip: use 'recognize' for snippets and 'store/remember' for reference tracks.");
+                println!(
+                    "   Tip: use 'recognize' for snippets and 'store/remember' for reference tracks."
+                );
             }
         }
         Command::Recognize {
@@ -177,7 +179,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_config,
             overrides,
         } => {
-            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) =
+                AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
@@ -197,12 +200,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
             if !config_report.loaded_paths.is_empty() {
-                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+                println!(
+                    "Config: loaded from {}",
+                    config_report.loaded_paths.join(", ")
+                );
             }
             if let Some((name, score)) = matches.first() {
-                println!(
-                    "✅ Match found\nTop Match: {name} (match score: {score})",
-                );
+                println!("✅ Match found\nTop Match: {name} (match score: {score})",);
             } else {
                 println!("❌ No matches found");
             }
@@ -218,7 +222,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_config,
             overrides,
         } => {
-            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) =
+                AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
@@ -238,7 +243,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
             if !config_report.loaded_paths.is_empty() {
-                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+                println!(
+                    "Config: loaded from {}",
+                    config_report.loaded_paths.join(", ")
+                );
             }
             if matches.is_empty() {
                 println!("❌ No matches found");
@@ -256,7 +264,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_config,
             overrides,
         } => {
-            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) =
+                AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             let db = Database::open(&db_path)?;
@@ -272,18 +281,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             if !config_report.loaded_paths.is_empty() {
-                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+                println!(
+                    "Config: loaded from {}",
+                    config_report.loaded_paths.join(", ")
+                );
             }
             println!(
                 "Captured: {:.2}s @ {} Hz | frames={}, peaks={}, fingerprints={}",
-                report.duration_seconds, sample_rate, report.frame_count, report.peak_count, report.fingerprint_count
+                report.duration_seconds,
+                sample_rate,
+                report.frame_count,
+                report.peak_count,
+                report.fingerprint_count
             );
 
             let matches = db.recognize_song_with_config(&fingerprints, &cfg.recognition)?;
             if let Some((name, score)) = matches.first() {
-                println!(
-                    "✅ Match found\nTop Match: {name} (match score: {score})",
-                );
+                println!("✅ Match found\nTop Match: {name} (match score: {score})",);
             } else {
                 println!("❌ No matches found");
             }
@@ -299,11 +313,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             no_config,
             overrides,
         } => {
-            let (mut cfg, config_report) = AppConfig::load_with_report(config_path.as_deref(), no_config)?;
+            let (mut cfg, config_report) =
+                AppConfig::load_with_report(config_path.as_deref(), no_config)?;
             apply_overrides(&mut cfg, &overrides);
 
             if !config_report.loaded_paths.is_empty() {
-                println!("Config: loaded from {}", config_report.loaded_paths.join(", "));
+                println!(
+                    "Config: loaded from {}",
+                    config_report.loaded_paths.join(", ")
+                );
             }
 
             let files = list_audio_files(std::path::Path::new(&folder))?;
@@ -316,8 +334,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut db = Database::open(&db_path)?;
 
             // Throwaway conversion workspace; removed when the run finishes.
-            let temp_dir = std::env::temp_dir()
-                .join(format!("resonanceid-cli-import-{}", std::process::id()));
+            let temp_dir =
+                std::env::temp_dir().join(format!("resonanceid-cli-import-{}", std::process::id()));
             std::fs::create_dir_all(&temp_dir)?;
 
             let mut indexed = 0usize;
@@ -327,18 +345,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let path = file.to_string_lossy().to_string();
                 let name = derive_song_name(file);
 
-                let result = prepare_wav(file, &temp_dir)
-                    .and_then(|prepared| {
-                        fingerprint_wav_with_report_and_clip(
-                            &prepared.wav_path.to_string_lossy(),
-                            cfg.fingerprint.threshold_db,
-                            cfg.fingerprint.window_size,
-                            cfg.fingerprint.hop_size,
-                            cfg.fingerprint.anchor_window,
-                            ClipOptions::default(),
-                        )
-                        .map(|fingerprints| (fingerprints.0, fingerprints.1.duration_seconds))
-                    });
+                let result = prepare_wav(file, &temp_dir).and_then(|prepared| {
+                    fingerprint_wav_with_report_and_clip(
+                        &prepared.wav_path.to_string_lossy(),
+                        cfg.fingerprint.threshold_db,
+                        cfg.fingerprint.window_size,
+                        cfg.fingerprint.hop_size,
+                        cfg.fingerprint.anchor_window,
+                        ClipOptions::default(),
+                    )
+                    .map(|fingerprints| (fingerprints.0, fingerprints.1.duration_seconds))
+                });
 
                 match result {
                     Ok((fingerprints, duration_seconds)) => {
@@ -424,10 +441,7 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
 
             let wav_path = args[2].clone();
             // Only treat args[3] as the name if it isn't a flag.
-            let name = args
-                .get(3)
-                .filter(|arg| !arg.starts_with('-'))
-                .cloned();
+            let name = args.get(3).filter(|arg| !arg.starts_with('-')).cloned();
             let offset = if name.is_some() { 4 } else { 3 };
             let (db_path, config_path, no_config, overrides) = parse_common_options(args, offset)?;
 
@@ -570,7 +584,9 @@ fn parse_cli(args: &[String]) -> Result<Command, Box<dyn std::error::Error>> {
 
 /// Pulls `--duration <seconds>` out of the args (defaulting to 10s) and
 /// returns the remaining args with that flag removed.
-fn extract_listen_duration(args: &[String]) -> Result<(f32, Vec<String>), Box<dyn std::error::Error>> {
+fn extract_listen_duration(
+    args: &[String],
+) -> Result<(f32, Vec<String>), Box<dyn std::error::Error>> {
     let mut duration_seconds = DEFAULT_LISTEN_DURATION_SECONDS;
     let mut rest: Vec<String> = Vec::with_capacity(args.len());
     rest.push(args[0].clone());
@@ -592,7 +608,11 @@ fn extract_listen_duration(args: &[String]) -> Result<(f32, Vec<String>), Box<dy
     Ok((duration_seconds, rest))
 }
 
-fn parse_db_only_option(args: &[String], offset: usize) -> Result<String, Box<dyn std::error::Error>> {    if args.len() == offset {
+fn parse_db_only_option(
+    args: &[String],
+    offset: usize,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if args.len() == offset {
         return Ok(DEFAULT_DB_PATH.to_string());
     }
 
@@ -698,7 +718,9 @@ fn parse_common_options(
                 }
                 let v: f32 = args[i + 1].parse()?;
                 if v < 1.0 {
-                    return Err("--min-margin-ratio must be >= 1.0 (1.0 disables the margin check)".into());
+                    return Err(
+                        "--min-margin-ratio must be >= 1.0 (1.0 disables the margin check)".into(),
+                    );
                 }
                 overrides.min_margin_ratio = Some(v);
                 i += 2;
@@ -765,7 +787,9 @@ fn should_warn_short_index(duration_seconds: f32) -> bool {
 }
 
 fn has_help_flag(args: &[String], offset: usize) -> bool {
-    args.iter().skip(offset).any(|arg| arg == "--help" || arg == "-h")
+    args.iter()
+        .skip(offset)
+        .any(|arg| arg == "--help" || arg == "-h")
 }
 
 fn print_usage() {
@@ -856,7 +880,10 @@ fn print_listen_usage() {
     println!("  device rate, downmixed to mono, and normalized to 44.1 kHz.");
     println!();
     println!("OPTIONS");
-    println!("  --duration <seconds>   Recording length (default: {}s)", DEFAULT_LISTEN_DURATION_SECONDS as u32);
+    println!(
+        "  --duration <seconds>   Recording length (default: {}s)",
+        DEFAULT_LISTEN_DURATION_SECONDS as u32
+    );
     println!("  --db <db_path>");
     println!("  --config <path>");
     println!("  --no-config");
@@ -1152,7 +1179,11 @@ mod tests {
         let args = vec!["resonanceid-cli".to_string(), "mic".to_string()];
         let command = parse_cli(&args).unwrap();
         match command {
-            Command::Listen { duration_seconds, db_path, .. } => {
+            Command::Listen {
+                duration_seconds,
+                db_path,
+                ..
+            } => {
                 assert_eq!(duration_seconds, DEFAULT_LISTEN_DURATION_SECONDS);
                 assert_eq!(db_path, DEFAULT_DB_PATH);
             }

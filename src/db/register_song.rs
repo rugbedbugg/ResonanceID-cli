@@ -67,11 +67,7 @@ impl Database {
             for (hash, mut times) in grouped {
                 times.sort_unstable();
                 times.dedup();
-                stmt.execute(params![
-                    hash as i64,
-                    song_id,
-                    pack_anchor_times(&times)
-                ])?;
+                stmt.execute(params![hash as i64, song_id, pack_anchor_times(&times)])?;
             }
         }
 
