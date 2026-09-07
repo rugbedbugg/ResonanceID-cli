@@ -4,6 +4,7 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![Stars](https://img.shields.io/github/stars/rugbedbugg/ResonanceID-cli?style=for-the-badge&labelColor=000000)
 ![AUR version](https://img.shields.io/aur/version/resonanceid-cli?style=for-the-badge&labelColor=000000)
+[![CI](https://img.shields.io/github/actions/workflow/status/rugbedbugg/ResonanceID-cli/ci.yml?branch=main&style=for-the-badge&labelColor=000000)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/ci.yml)
 
 A Rust-based audio fingerprinting CLI inspired by Shazam-style matching. It stores a reference track as a set of hashed spectral fingerprints, then identifies unknown clips by voting on the timing offset where the most fingerprints agree.
 
@@ -65,7 +66,9 @@ yay -S resonanceid-cli
 
 ### From source
 
-Requires Rust 1.85+ (edition 2024). Works on Linux, macOS and Windows — SQLite is compiled in via rusqlite's `bundled` feature, so no system SQLite development library is needed.
+Requires Rust 1.85 or newer (edition 2024). CI uses the stable toolchain. Works
+on Linux, macOS and Windows — SQLite is compiled in via rusqlite's `bundled`
+feature, so no system SQLite development library is needed.
 
 ```bash
 git clone https://github.com/rugbedbugg/ResonanceID-cli.git
@@ -261,11 +264,35 @@ Or use the bundled helper scripts (`scripts/`):
 ## Testing
 
 ```bash
-cargo test
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo build --workspace --all-targets --locked
+cargo test --workspace --locked
 ```
 
-Covers CLI argument parsing, config loading/layering, clip-range resolution, hashing, and DB integration.
+These are the same formatting, lint, build, and test checks used by the CI
+workflow on Linux and Windows. The tests cover CLI argument parsing, config
+loading/layering, clip-range resolution, hashing, and database integration.
+
+Tagged releases are verified against the version in `Cargo.toml`, built for
+Linux and Windows, checksummed, and attached to a GitHub release. Chocolatey,
+Winget, and AUR publication remain separate package-channel operations that
+consume those release artifacts.
+
+## Development
+
+Format changes with `cargo fmt --all` before opening a pull request. Keep
+sample audio and local databases out of commits; the repository's test suite
+uses generated temporary data. Pull requests should pass the complete CI
+workflow before they are merged.
 
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Links
+
+- **Repository:** https://github.com/rugbedbugg/ResonanceID-cli
+- **Issues:** https://github.com/rugbedbugg/ResonanceID-cli/issues
+- **Releases:** https://github.com/rugbedbugg/ResonanceID-cli/releases
+- **AUR:** https://aur.archlinux.org/packages/resonanceid-cli
