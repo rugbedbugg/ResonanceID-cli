@@ -9,3 +9,8 @@
 *.wav
 *.mp3
 
+
+# submission working copies: aur/ and winget-pkgs/ are separate upstream
+# clones (~1GB combined); only the chocolatey package source is tracked here
+/SUBMISSIONS/*
+!/SUBMISSIONS/chocolatey/
