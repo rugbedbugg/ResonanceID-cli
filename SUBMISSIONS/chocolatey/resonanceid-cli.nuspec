@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>resonanceid-cli</id>
+    <version>1.0.0.20260907</version>
+    <title>ResonanceID CLI</title>
+    <authors>Partha Pratim Gogoi</authors>
+    <owners>rugbedbugg</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <licenseUrl>https://github.com/rugbedbugg/ResonanceID-cli/blob/main/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/rugbedbugg/ResonanceID-cli</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/rugbedbugg/ResonanceID-cli@86ff37f71d1cb3a94b039e80b2eef803af9b05ab/assets/icon.png</iconUrl>
+    <description>ResonanceID is a Shazam-style audio fingerprinting CLI that identifies
+songs from short clips. It builds a spectral peak constellation from the
+audio, hashes peak pairs into a local fingerprint database, and matches
+incoming clips against it in seconds - fully offline, no API keys.
+
+After install, run `resonanceid-cli --help` to get started.
+Note: for non-WAV input, FFmpeg must be available on PATH.</description>
+    <summary>Shazam-style audio fingerprinting CLI that identifies songs from short clips.</summary>
+    <releaseNotes>https://github.com/rugbedbugg/ResonanceID-cli/releases/tag/v1.0.0</releaseNotes>
+    <tags>audio fingerprinting music recognition shazam cli rust acoustid</tags>
+    <projectSourceUrl>https://github.com/rugbedbugg/ResonanceID-cli</projectSourceUrl>
+    <packageSourceUrl>https://github.com/rugbedbugg/ResonanceID-cli</packageSourceUrl>
+    <docsUrl>https://github.com/rugbedbugg/ResonanceID-cli/blob/main/README.md</docsUrl>
+    <bugTrackerUrl>https://github.com/rugbedbugg/ResonanceID-cli/issues</bugTrackerUrl>
+  </metadata>
+</package>
