@@ -291,3 +291,13 @@ Covers CLI argument parsing, config loading/layering, clip-range resolution, has
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+### Package-channel automation
+
+[![Packaging](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/packaging.yml/badge.svg)](https://github.com/rugbedbugg/ResonanceID-cli/actions/workflows/packaging.yml)
+
+Chocolatey, Winget and AUR packages are prepared from the same published release
+and validated automatically. Publication is an explicit manual workflow choice;
+Winget opens an upstream PR and Chocolatey submissions undergo moderation.
+See [packaging instructions](SUBMISSIONS/README.md) for validation, release
+selection and required publishing credentials.

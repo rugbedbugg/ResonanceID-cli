@@ -15,6 +15,11 @@ if [[ "$CHANNEL" == aur ]]; then
     export GIT_SSH_COMMAND="ssh -i $key_file -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$hosts_file"
     git clone ssh://aur@aur.archlinux.org/resonanceid-cli.git submission
     cd submission
+    current=$(sed -n 's/^pkgver=//p' PKGBUILD)
+    if [[ "$current" != "$VERSION" ]] && [[ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | head -n1)" == "$VERSION" ]]; then
+        echo 'Refusing to downgrade the AUR package' >&2
+        exit 1
+    fi
     cp "$source_dir/PKGBUILD" "$source_dir/.SRCINFO" .
     git add PKGBUILD .SRCINFO
     if git diff --cached --quiet; then echo 'AUR already matches the validated recipe'; exit 0; fi

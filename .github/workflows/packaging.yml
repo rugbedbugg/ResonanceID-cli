@@ -8,6 +8,11 @@ on:
     paths: ['SUBMISSIONS/**', 'scripts/packaging/**', '.github/workflows/packaging.yml', 'mise.toml']
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       tag:

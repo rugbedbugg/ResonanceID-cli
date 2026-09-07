@@ -156,3 +156,9 @@ jobs:
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir downloaded
           cd downloaded
           sha256sum --check ../artifacts/*.sha256
+
+  validate-packages:
+    needs: [verify, release]
+    uses: ./.github/workflows/packaging.yml
+    with:
+      tag: v${{ needs.verify.outputs.version }}

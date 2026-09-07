@@ -31,7 +31,7 @@ if ($Channel -eq 'chocolatey') {
         & "$env:LOCALAPPDATA/Microsoft/WinGet/Links/resonanceid-cli.exe" --help
         CheckExit 'CLI smoke'
     } finally {
-        winget uninstall --id rugbedbugg.ResonanceID-cli --exact --silent --disable-interactivity
+        winget uninstall --id rugbedbugg.ResonanceID-cli --exact --silent --accept-source-agreements --disable-interactivity
         CheckExit 'Uninstall'
         if (Test-Path "$env:LOCALAPPDATA/Microsoft/WinGet/Links/resonanceid-cli.exe") { throw 'Portable alias survived uninstall' }
     }
